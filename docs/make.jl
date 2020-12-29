@@ -6,4 +6,5 @@ makedocs(modules=[TimeSpans],
          authors="Beacon Biosignals, Inc.",
          pages=["API Documentation" => "index.md"])
 
-deploydocs(repo="github.com/beacon-biosignals/TimeSpans.jl.git")
+deploydocs(repo="github.com/beacon-biosignals/TimeSpans.jl.git",
+           devbranch="main")
