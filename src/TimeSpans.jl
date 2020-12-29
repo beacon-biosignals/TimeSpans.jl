@@ -38,17 +38,25 @@ Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
-start(span::TimeSpan) = span.start
-
-stop(span::TimeSpan) = span.stop
-
 #####
 ##### generic TimeSpans.jl interface
 #####
 
+"""
+    start(span)
+
+Return the inclusive lower bound of `span` as a `Nanosecond` value.
+"""
+start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
 start(r::AbstractRange) = convert(Nanosecond, first(r))
 
+"""
+    stop(span)
+
+Return the exclusive upper bound of `span` as a `Nanosecond` value.
+"""
+stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
 stop(r::AbstractRange) = convert(Nanosecond, last(r))
 
@@ -57,7 +65,7 @@ stop(r::AbstractRange) = convert(Nanosecond, last(r))
 #####
 
 """
-    contains(a, b)
+    TimeSpans.contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
@@ -66,7 +74,7 @@ function contains(a, b)
 end
 
 """
-    overlaps(a, b)
+    TimeSpans.overlaps(a, b)
 
 Return `true` if the timespan `a` and the timespan `b` overlap, return `false` otherwise.
 """
@@ -76,7 +84,7 @@ function overlaps(a, b)
 end
 
 """
-    shortest_timespan_containing(spans)
+    TimeSpans.shortest_timespan_containing(spans)
 
 Return the shortest possible `TimeSpan` containing all timespans in `spans`.
 
@@ -93,7 +101,7 @@ function shortest_timespan_containing(spans)
 end
 
 """
-    duration(span)
+    TimeSpans.duration(span)
 
 Return `stop(span) - start(span)`.
 """
@@ -102,7 +110,7 @@ duration(span) = stop(span) - start(span)
 nanoseconds_per_sample(sample_rate) = inv(sample_rate) * 1_000_000_000
 
 """
-    index_from_time(sample_rate, sample_time::Period)
+    TimeSpans.index_from_time(sample_rate, sample_time::Period)
 
 Given `sample_rate` in Hz, return the integer index of the most recent sample
 taken at `sample_time`. Note that `sample_time` must be non-negative and support
@@ -111,16 +119,16 @@ taken at `sample_time`. Note that `sample_time` must be non-negative and support
 Examples:
 
 ```
-julia> index_from_time(1, Second(0))
+julia> TimeSpans.index_from_time(1, Second(0))
 1
 
-julia> index_from_time(1, Second(1))
+julia> TimeSpans.index_from_time(1, Second(1))
 2
 
-julia> index_from_time(100, Millisecond(999))
+julia> TimeSpans.index_from_time(100, Millisecond(999))
 100
 
-julia> index_from_time(100, Millisecond(1000))
+julia> TimeSpans.index_from_time(100, Millisecond(1000))
 101
 ```
 """
@@ -132,18 +140,18 @@ function index_from_time(sample_rate, sample_time::Period)
 end
 
 """
-    index_from_time(sample_rate, span)
+    TimeSpans.index_from_time(sample_rate, span)
 
 Return the `UnitRange` of indices corresponding to `span` given `sample_rate` in Hz:
 
 ```
-julia> index_from_time(100, TimeSpan(Second(0), Second(1)))
+julia> TimeSpans.index_from_time(100, TimeSpan(Second(0), Second(1)))
 1:100
 
-julia> index_from_time(100, TimeSpan(Second(1)))
+julia> TimeSpans.index_from_time(100, TimeSpan(Second(1)))
 101:101
 
-julia> index_from_time(100, TimeSpan(Second(3), Second(6)))
+julia> TimeSpans.index_from_time(100, TimeSpan(Second(3), Second(6)))
 301:600
 ```
 """
@@ -155,7 +163,7 @@ function index_from_time(sample_rate, span)
 end
 
 """
-    time_from_index(sample_rate, sample_index)
+    TimeSpans.time_from_index(sample_rate, sample_index)
 
 Given `sample_rate` in Hz and assuming `sample_index > 0`, return the earliest
 `Nanosecond` containing `sample_index`.
@@ -163,16 +171,16 @@ Given `sample_rate` in Hz and assuming `sample_index > 0`, return the earliest
 Examples:
 
 ```
-julia> time_from_index(1, 1)
+julia> TimeSpans.time_from_index(1, 1)
 0 nanoseconds
 
-julia> time_from_index(1, 2)
+julia> TimeSpans.time_from_index(1, 2)
 1000000000 nanoseconds
 
-julia> time_from_index(100, 100)
+julia> TimeSpans.time_from_index(100, 100)
 990000000 nanoseconds
 
-julia> time_from_index(100, 101)
+julia> TimeSpans.time_from_index(100, 101)
 1000000000 nanoseconds
 ```
 """
@@ -182,18 +190,18 @@ function time_from_index(sample_rate, sample_index)
 end
 
 """
-    time_from_index(sample_rate, sample_range::AbstractUnitRange)
+    TimeSpans.time_from_index(sample_rate, sample_range::AbstractUnitRange)
 
 Return the `TimeSpan` corresponding to `sample_range` given `sample_rate` in Hz:
 
 ```
-julia> time_from_index(100, 1:100)
+julia> TimeSpans.time_from_index(100, 1:100)
 TimeSpan(0 nanoseconds, 1000000000 nanoseconds)
 
-julia> time_from_index(100, 101:101)
+julia> TimeSpans.time_from_index(100, 101:101)
 TimeSpan(1000000000 nanoseconds, 1000000001 nanoseconds)
 
-julia> time_from_index(100, 301:600)
+julia> TimeSpans.time_from_index(100, 301:600)
 TimeSpan(3000000000 nanoseconds, 6000000000 nanoseconds)
 ```
 """
