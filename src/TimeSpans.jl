@@ -2,93 +2,68 @@ module TimeSpans
 
 using Dates
 
-"""
-    AbstractTimeSpan
-
-A type repesenting a continuous span between two points in time.
-
-All subtypes of `AbstractTimeSpan` must implement:
-
-- `start(::AbstractTimeSpan)::Nanosecond`: return the first nanosecond contained in `span`
-- `stop(::AbstractTimeSpan)::Nanosecond`: return the last nanosecond contained in `span`
-
-For convenience, many Onda functions that accept `AbstractTimeSpan` values also accept
-`Dates.Period` values.
-
-See also: [`TimeSpan`](@ref)
-"""
-abstract type AbstractTimeSpan end
-
-Base.first(t::Period) = convert(Nanosecond, t)
-
-Base.last(t::Period) = convert(Nanosecond, t)
-
-function validate_timespan(first::Nanosecond, last::Nanosecond)
-    first < last || throw(ArgumentError("first(span) < last(span) must be true, got $first and $last"))
-    return nothing
-end
+export TimeSpan, start, stop
 
 #####
 ##### `TimeSpan`
 #####
 
 """
-    TimeSpan(first, last)
+    TimeSpan(start, stop)
 
-Return `TimeSpan(Nanosecond(first), Nanosecond(last))::AbstractTimeSpan`.
+Return `TimeSpan(Nanosecond(start), Nanosecond(stop))`.
 
-If `first == last`, a single `Nanosecond` is added to `last` since `last` is an exclusive
-upper bound and Onda only supports up to nanosecond precision anyway. This behavior also
-avoids most practical forms of potential breakage w.r.t to legacy versions of Onda that
-accidentally allowed the construction of `TimeSpans` where `first == last`.
+If `start == stop`, a single `Nanosecond` is added to `stop` since `stop` is an exclusive
+upper bound and TimeSpans.jl operations only support up to nanosecond precision anyway.
 
-See also: [`AbstractTimeSpan`](@ref)
+The benefit of this type over e.g. `Nanosecond(start):Nanosecond(1):Nanosecond(stop)` is
+that instances of this type are guaranteed to obey `TimeSpans.start(x) < TimeSpans.stop(x)`
+by construction.
 """
-struct TimeSpan <: AbstractTimeSpan
-    first::Nanosecond
-    last::Nanosecond
-    function TimeSpan(first::Nanosecond, last::Nanosecond)
-        last += Nanosecond(first == last)
-        validate_timespan(first, last)
-        return new(first, last)
+struct TimeSpan
+    start::Nanosecond
+    stop::Nanosecond
+    function TimeSpan(start::Nanosecond, stop::Nanosecond)
+        stop += Nanosecond(start == stop)
+        start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
+        return new(start, stop)
     end
-    TimeSpan(first, last) = TimeSpan(Nanosecond(first), Nanosecond(last))
+    TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
 
 """
     TimeSpan(x)
 
-Return `TimeSpan(first(x), last(x))`.
-
-See also: [`AbstractTimeSpan`](@ref)
+Return `TimeSpan(start(x), stop(x))`.
 """
-TimeSpan(x) = TimeSpan(first(x), last(x))
+TimeSpan(x) = TimeSpan(start(x), stop(x))
 
-Base.first(span::TimeSpan) = span.first
+start(span::TimeSpan) = span.start
 
-Base.last(span::TimeSpan) = span.last
-
-MsgPack.msgpack_type(::Type{TimeSpan}) = MsgPack.StructType()
+stop(span::TimeSpan) = span.stop
 
 #####
-##### `AbstractTimeSpan` Utilities
+##### generic TimeSpans.jl interface
 #####
 
-# Extend the Base function when defined
-if isdefined(Base, :contains)  # VERSION >= v"1.5.0-DEV.639"
-    import Base: contains
-end
+start(t::Period) = convert(Nanosecond, t)
+start(r::AbstractRange) = convert(Nanosecond, first(r))
+
+stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
+stop(r::AbstractRange) = convert(Nanosecond, last(r))
+
+#####
+##### generic utilities
+#####
 
 """
-    contains(a::AbstractTimeSpan, b::AbstractTimeSpan)
+    contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
-function contains(a::AbstractTimeSpan, b::AbstractTimeSpan)
-    return first(a) <= first(b) && last(a) >= last(b)
+function contains(a, b)
+    return start(a) <= start(b) && stop(a) >= stop(b)
 end
-
-contains(a::AbstractTimeSpan, b) = contains(a, TimeSpan(b))
 
 """
     overlaps(a, b)
@@ -96,9 +71,8 @@ contains(a::AbstractTimeSpan, b) = contains(a, TimeSpan(b))
 Return `true` if the timespan `a` and the timespan `b` overlap, return `false` otherwise.
 """
 function overlaps(a, b)
-    a, b = TimeSpan(a), TimeSpan(b)
-    starts_earlier, starts_later = ifelse(first(b) > first(a), (a, b), (b, a))
-    return last(starts_earlier) >= first(starts_later)
+    starts_earlier, starts_later = ifelse(start(b) > start(a), (a, b), (b, a))
+    return stop(starts_earlier) >= start(starts_later)
 end
 
 """
@@ -112,8 +86,8 @@ function shortest_timespan_containing(spans)
     isempty(spans) && throw(ArgumentError("input iterator must be nonempty"))
     lo, hi = Nanosecond(typemax(Int64)), Nanosecond(0)
     for span in spans
-        lo = min(first(span), lo)
-        hi = max(last(span), hi)
+        lo = min(start(span), lo)
+        hi = max(stop(span), hi)
     end
     return TimeSpan(lo, hi)
 end
@@ -121,19 +95,14 @@ end
 """
     duration(span)
 
-Return the duration of `span` as a `Period`.
-
-For `span::AbstractTimeSpan`, this is equivalent to `last(span) - first(span)`.
-
-For `span::Period`, this function is the identity.
+Return `stop(span) - start(span)`.
 """
-duration(t::AbstractTimeSpan) = last(t) - first(t)
-duration(t::Period) = t
+duration(span) = stop(span) - start(span)
 
 nanoseconds_per_sample(sample_rate) = inv(sample_rate) * 1_000_000_000
 
 """
-    index_from_time(sample_rate, sample_time)
+    index_from_time(sample_rate, sample_time::Period)
 
 Given `sample_rate` in Hz, return the integer index of the most recent sample
 taken at `sample_time`. Note that `sample_time` must be non-negative and support
@@ -155,7 +124,7 @@ julia> index_from_time(100, Millisecond(1000))
 101
 ```
 """
-function index_from_time(sample_rate, sample_time)
+function index_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
     time_in_nanoseconds >= 0 || throw(ArgumentError("`sample_time` must be >= 0 nanoseconds"))
     ns_per_sample = nanoseconds_per_sample(sample_rate)
@@ -163,7 +132,7 @@ function index_from_time(sample_rate, sample_time)
 end
 
 """
-    index_from_time(sample_rate, span::AbstractTimeSpan)
+    index_from_time(sample_rate, span)
 
 Return the `UnitRange` of indices corresponding to `span` given `sample_rate` in Hz:
 
@@ -178,9 +147,9 @@ julia> index_from_time(100, TimeSpan(Second(3), Second(6)))
 301:600
 ```
 """
-function index_from_time(sample_rate, span::AbstractTimeSpan)
-    i = index_from_time(sample_rate, first(span))
-    j = index_from_time(sample_rate, last(span))
+function index_from_time(sample_rate, span)
+    i = index_from_time(sample_rate, start(span))
+    j = index_from_time(sample_rate, stop(span))
     j = i == j ? j : (j - 1)
     return i:j
 end
@@ -207,9 +176,9 @@ julia> time_from_index(100, 101)
 1000000000 nanoseconds
 ```
 """
-function time_from_index(sample_rate, index)
-    index > 0 || throw(ArgumentError("`index` must be > 0"))
-    return Nanosecond(ceil(Int, (index - 1) * nanoseconds_per_sample(sample_rate)))
+function time_from_index(sample_rate, sample_index)
+    sample_index > 0 || throw(ArgumentError("`sample_index` must be > 0"))
+    return Nanosecond(ceil(Int, (sample_index - 1) * nanoseconds_per_sample(sample_rate)))
 end
 
 """
