@@ -13,6 +13,10 @@ using Test, TimeSpans, Dates
     @test TimeSpans.duration(TimeSpan(start(t), stop(t) + Nanosecond(100))) == Nanosecond(101)
     @test TimeSpans.duration(start(t)) == Nanosecond(1)
     @test_throws ArgumentError TimeSpan(4, 2)
+    @test TimeSpans.istimespan(t)
+    @test TimeSpans.istimespan(start(t))
+    @test !TimeSpans.istimespan(1)
+    @test !TimeSpans.istimespan(1:10)
 end
 
 @testset "contains(::TimeSpan...)" begin

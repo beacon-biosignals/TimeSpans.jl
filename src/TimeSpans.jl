@@ -43,13 +43,24 @@ TimeSpan(x) = TimeSpan(start(x), stop(x))
 #####
 
 """
+    istimespan(x)
+
+Return `true` if `x` has been declared to support `TimeSpans.start(x)` and `TimeSpans.stop(x)`,
+return `false` otherwise.
+
+Types that overload `TimeSpans.start`/`TimeSpans.stop` should also overload `istimespan`.
+"""
+istimespan(::Any) = false
+istimespan(::TimeSpan) = true
+istimespan(::Period) = true
+
+"""
     start(span)
 
 Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
-start(r::AbstractRange) = convert(Nanosecond, first(r))
 
 """
     stop(span)
@@ -58,7 +69,6 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
-stop(r::AbstractRange) = convert(Nanosecond, last(r))
 
 #####
 ##### generic utilities
