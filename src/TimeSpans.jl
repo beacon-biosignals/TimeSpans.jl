@@ -135,6 +135,11 @@ Return `stop(span) - start(span)`.
 """
 duration(span) = stop(span) - start(span)
 
+"""
+    nanoseconds_per_sample(sample_rate)
+
+Given `sample_rate` in Hz, return the number of nanoseconds corresponding to one sample.
+"""
 nanoseconds_per_sample(sample_rate) = inv(sample_rate) * 1_000_000_000
 
 """
