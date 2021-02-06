@@ -75,13 +75,21 @@ stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
 #####
 
 """
+    translate(span, by::Period)
+
+Return `TimeSpan(start(span) + by, stop(span) + by)`.
+"""
+function translate(span, by::Period)
+    by = convert(Nanosecond, by)
+    return TimeSpan(start(span) + by, stop(span) + by)
+end
+
+"""
     TimeSpans.contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
-function contains(a, b)
-    return start(a) <= start(b) && stop(a) >= stop(b)
-end
+contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
 
 """
     TimeSpans.overlaps(a, b)
