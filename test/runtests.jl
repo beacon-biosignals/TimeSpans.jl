@@ -17,6 +17,9 @@ using Test, TimeSpans, Dates
     @test TimeSpans.istimespan(start(t))
     @test !TimeSpans.istimespan(1)
     @test !TimeSpans.istimespan(1:10)
+    by = Second(rand(1:10))
+    @test TimeSpans.translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
+    @test TimeSpans.translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
 end
 
 @testset "contains(::TimeSpan...)" begin
