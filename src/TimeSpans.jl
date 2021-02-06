@@ -146,7 +146,7 @@ taken at `sample_time`. Note that `sample_time` must be non-negative and support
 
 Examples:
 
-```
+```jldoctest
 julia> index_from_time(1, Second(0))
 1
 
@@ -172,7 +172,7 @@ end
 
 Return the `UnitRange` of indices corresponding to `span` given `sample_rate` in Hz:
 
-```
+```jldoctest
 julia> index_from_time(100, TimeSpan(Second(0), Second(1)))
 1:100
 
@@ -198,7 +198,7 @@ Given `sample_rate` in Hz and assuming `sample_index > 0`, return the earliest
 
 Examples:
 
-```
+```jldoctest
 julia> time_from_index(1, 1)
 0 nanoseconds
 
@@ -222,7 +222,7 @@ end
 
 Return the `TimeSpan` corresponding to `sample_range` given `sample_rate` in Hz:
 
-```
+```jldoctest
 julia> time_from_index(100, 1:100)
 TimeSpan(0 nanoseconds, 1000000000 nanoseconds)
 
