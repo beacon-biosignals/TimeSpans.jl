@@ -2,9 +2,9 @@ module TimeSpans
 
 using Dates
 
-export TimeSpan, start, stop, istimespan, translate, contains, overlaps,
-       shortest_timespan_containing, duration, index_from_time, time_from_index,
-       nanoseconds_per_sample
+export TimeSpan, start, stop, istimespan, translate, overlaps,
+       shortest_timespan_containing, duration, index_from_time,
+       time_from_index
 
 
 #####
@@ -87,19 +87,12 @@ function translate(span, by::Period)
     return TimeSpan(start(span) + by, stop(span) + by)
 end
 
-# Extend the Base function when defined. TODO: Remove this when 1.5 is required.
-if isdefined(Base, :contains)  # VERSION >= v"1.5.0-DEV.639"
-    import Base: contains
-end
-
 """
-    contains(a, b)
+    TimeSpans.contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
-contains(a::TimeSpan, b::TimeSpan) = start(a) <= start(b) && stop(a) >= stop(b)
-contains(a, b::TimeSpan) = contains(TimeSpan(a), b)
-contains(a::TimeSpan, b) = contains(a, TimeSpan(b))
+contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
 
 """
     overlaps(a, b)
@@ -136,7 +129,7 @@ Return `stop(span) - start(span)`.
 duration(span) = stop(span) - start(span)
 
 """
-    nanoseconds_per_sample(sample_rate)
+    TimeSpans.nanoseconds_per_sample(sample_rate)
 
 Given `sample_rate` in Hz, return the number of nanoseconds corresponding to one sample.
 """

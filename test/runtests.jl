@@ -1,5 +1,7 @@
 using Test, TimeSpans, Dates
 
+using TimeSpans: contains, nanoseconds_per_sample
+
 @testset "basic TimeSpan code paths" begin
     t = TimeSpan(Nanosecond(rand(UInt32)))
     @test t == TimeSpan(t)
