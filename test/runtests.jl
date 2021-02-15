@@ -45,8 +45,8 @@ end
     @test overlaps(TimeSpan(11, 20), TimeSpan(10, 19))
     @test overlaps(TimeSpan(10, 19), TimeSpan(10, 21))
     @test overlaps(TimeSpan(11, 19), TimeSpan(10, 20))
-    @test overlaps(TimeSpan(10, 20), TimeSpan(20, 30))
     @test overlaps(TimeSpan(20, 30), TimeSpan(10, 20))
+    @test !overlaps(TimeSpan(10, 20), TimeSpan(20, 30))
     @test !overlaps(TimeSpan(10, 20), TimeSpan(21, 30))
     @test !overlaps(TimeSpan(21, 30), TimeSpan(10, 20))
 end

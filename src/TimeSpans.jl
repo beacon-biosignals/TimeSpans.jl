@@ -101,7 +101,7 @@ Return `true` if the timespan `a` and the timespan `b` overlap, return `false` o
 """
 function overlaps(a, b)
     starts_earlier, starts_later = ifelse(start(b) > start(a), (a, b), (b, a))
-    return stop(starts_earlier) >= start(starts_later)
+    return stop(starts_earlier) > start(starts_later)
 end
 
 """
