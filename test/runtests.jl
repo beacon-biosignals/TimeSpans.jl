@@ -22,6 +22,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     by = Second(rand(1:10))
     @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
     @test translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
+    @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 end
 
 @testset "contains(::TimeSpan...)" begin
@@ -45,8 +46,8 @@ end
     @test overlaps(TimeSpan(11, 20), TimeSpan(10, 19))
     @test overlaps(TimeSpan(10, 19), TimeSpan(10, 21))
     @test overlaps(TimeSpan(11, 19), TimeSpan(10, 20))
-    @test overlaps(TimeSpan(10, 20), TimeSpan(20, 30))
-    @test overlaps(TimeSpan(20, 30), TimeSpan(10, 20))
+    @test !overlaps(TimeSpan(20, 30), TimeSpan(10, 20))
+    @test !overlaps(TimeSpan(10, 20), TimeSpan(20, 30))
     @test !overlaps(TimeSpan(10, 20), TimeSpan(21, 30))
     @test !overlaps(TimeSpan(21, 30), TimeSpan(10, 20))
 end
