@@ -42,6 +42,38 @@ Return `TimeSpan(start(x), stop(x))`.
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
 #####
+##### pretty printing
+#####
+
+function nanosecond_to_periods(ns::Integer)
+    μs, ns = divrem(ns, 1000)
+    ms, μs = divrem(μs, 1000)
+    s, ms = divrem(ms, 1000)
+    m, s = divrem(s, 60)
+    hr, m = divrem(m, 60)
+    return (hr, m, s, ms, μs, ns)
+end
+
+format_duration(t::Period) = format_duration(convert(Nanosecond, t).value)
+
+function format_duration(ns::Integer)
+    hr, m, s, ms, μs, ns = nanosecond_to_periods(ns)
+    hr = lpad(hr, 2, '0')
+    m = lpad(m, 2, '0')
+    s = lpad(s, 2, '0')
+    ms = lpad(ms, 3, '0')
+    μs = lpad(μs, 3, '0')
+    ns = lpad(ns, 3, '0')
+    return string(hr, ':', m, ':', s, '.', ms, μs, ns)
+end
+
+function Base.show(io::IO, w::TimeSpan)
+    start_string = format_duration(start(w))
+    stop_string = format_duration(stop(w))
+    return print(io, "TimeSpan(", start_string, ", ", stop_string, ')')
+end
+
+#####
 ##### generic TimeSpans.jl interface
 #####
 
