@@ -82,3 +82,10 @@ end
         @test time_from_index(rate, i) == t
     end
 end
+
+@testset "`in` and `findall`" begin
+    @test findall(in(TimeSpan(1, 10)), Nanosecond.(5:15)) == 1:6
+    @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:2
+    @test in(TimeSpan(1,2))(Nanosecond(2))
+    @test !in(TimeSpan(1,2))(Nanosecond(3))
+end
