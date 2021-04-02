@@ -11,7 +11,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test contains(t, t)
     @test overlaps(t, t)
     @test start(t) ∈ t
-    @test stop(t) ∈ t
+    @test !(stop(t) ∈ t)
     @test stop(t) + Nanosecond(1) ∉ t
     @test shortest_timespan_containing([t]) == t
     @test shortest_timespan_containing((t,t,t)) == t
@@ -84,8 +84,8 @@ end
 end
 
 @testset "`in` and `findall`" begin
-    @test findall(in(TimeSpan(1, 10)), Nanosecond.(5:15)) == 1:6
-    @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:2
-    @test in(TimeSpan(1,2))(Nanosecond(2))
-    @test !in(TimeSpan(1,2))(Nanosecond(3))
+    @test findall(in(TimeSpan(1, 10)), Nanosecond.(5:15)) == 1:5
+    @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:1
+    @test in(TimeSpan(1,2))(Nanosecond(1))
+    @test !in(TimeSpan(1,2))(Nanosecond(2))
 end
