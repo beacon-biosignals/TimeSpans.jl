@@ -10,6 +10,9 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test t == TimeSpan(start(t), start(t) + Nanosecond(1))
     @test contains(t, t)
     @test overlaps(t, t)
+    @test start(t) ∈ t
+    @test stop(t) ∈ t
+    @test stop(t) + Nanosecond(1) ∉ t
     @test shortest_timespan_containing([t]) == t
     @test shortest_timespan_containing((t,t,t)) == t
     @test duration(TimeSpan(start(t), stop(t) + Nanosecond(100))) == Nanosecond(101)
