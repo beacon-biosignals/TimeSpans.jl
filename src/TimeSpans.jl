@@ -41,6 +41,8 @@ Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
+Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x <= stop(y)
+
 #####
 ##### pretty printing
 #####
