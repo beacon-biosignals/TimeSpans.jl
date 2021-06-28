@@ -1,10 +1,11 @@
 module TimeSpans
 
-using Dates
+using Base: @propagate_inbounds
+using Dates, StatsBase, FGenerators
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
-       time_from_index
+       time_from_index, extend
 
 
 #####
@@ -14,14 +15,30 @@ export TimeSpan, start, stop, istimespan, translate, overlaps,
 """
     TimeSpan(start, stop)
 
-Return `TimeSpan(Nanosecond(start), Nanosecond(stop))` representing the interval `[start, stop)`.
+Return `TimeSpan(Nanosecond(start), Nanosecond(stop))` representing the interval
+`[start, stop)`.
 
-If `start == stop`, a single `Nanosecond` is added to `stop` since `stop` is an exclusive
-upper bound and TimeSpan operations only generally support up to nanosecond precision anyway.
+If `start == stop`, a single `Nanosecond` is added to `stop` since `stop` is an
+exclusive upper bound and TimeSpan operations only generally support up to
+nanosecond precision anyway.
 
-The benefit of this type over e.g. `Nanosecond(start):Nanosecond(1):Nanosecond(stop)` is
-that instances of this type are guaranteed to obey `TimeSpans.start(x) < TimeSpans.stop(x)`
-by construction.
+The benefit of this type over e.g.
+`Nanosecond(start):Nanosecond(1):Nanosecond(stop)` is that instances of this
+type are guaranteed to obey `TimeSpans.start(x) < TimeSpans.stop(x)` by
+construction.
+
+## Set operations
+
+Time spans implement set operations from `Base` (`union`, `intersect`,
+`setdiff`), which each return an array of timespans, (possibly of length 1), and
+can accept both single time span values and arrays of time spans.
+
+## Sampling
+
+Time spans (and arrays of these objects) implement `rand`, so you can easily
+sample times that file within the specified range. When an array is passed, any
+overlap between time spans is first removed by effectively calling
+`reduce(union, timespans)`.
 """
 struct TimeSpan
     start::Nanosecond
@@ -125,11 +142,23 @@ function translate(span, by::Period)
 end
 
 """
+    extend(span, by::Period)
+
+Returns `TimeSpan(start(span), max(start(span), stop(span) + by)`
+"""
+function extend(x, by::Period)
+    by = convert(Nanosecond, by)
+    TimeSpan(start(span), max(start(span), stop(span) + by))
+end
+
+"""
     TimeSpans.contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
 contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
+Base.in(a::TimeSpan, b::TimeSpan) = contains(b, a)
+Base.in(a::Period, b::TimeSpan) = contains(b, a)
 
 """
     overlaps(a, b)
@@ -273,6 +302,190 @@ function time_from_index(sample_rate, sample_range::AbstractUnitRange)
     j = j == i ? j : j + 1
     return TimeSpan(time_from_index(sample_rate, i),
                     time_from_index(sample_rate, j))
+end
+
+#####
+##### set operations
+#####
+
+# Set operations return some kind of `AbstractTimeSpanUnion` an
+# AbstractTimeSpanUnion contains possibly multiple time spans and guarantees two
+# invariants:
+# 1. no overlap between timespans
+# 2. time spans sorted from earlier to later start times
+#
+# These invariants are maintained to ensure that sequences of multiple set
+# operations do not have to repeatedly check and preserve these invariants.
+abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan}; end
+
+function readOnlyError()
+    # AbstractTimeSpanUnion types are for read only objects. The reasoning here
+    # is that if you can modify the contents of any AbstractTimeSpanUnion, the
+    # invariants may no longer hold if the containing struct were to be passed
+    # to some new set operation.
+    error("This is a read only value. Call `collect` on the result to get "*
+          "an editable copy.")
+end
+
+# a `union` of a single time span
+struct TimeSpanSingleton <: AbstractTimeSpanUnion
+    data::TimeSpan
+end
+@propagate_inbounds Base.getindex(x::TimeSpanSingleton) = x.data
+Base.size(::TimeSpanSingleton) = ()
+Base.setindex(x::TimeSpanSingleton, v) = readOnlyError()
+
+# a `union` of multiple time spans
+struct TimeSpanUnion{A} <: AbstractVector{TimeSpan}
+    data::A
+    function TimeSpanUnion(x::AbstractVector{TimeSpan}, 
+        issorted = false, nooverlap = false)
+
+        sorted = issorted ? x : sort(data, by = start)
+        merged = nooverlap ? sorted : sorted_timespan_union(sorted)
+        new(merged)
+    end
+end
+Base.parent(x::TimeSpanUnion) = x.data
+@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
+Base.setindex(x::TimeSpanUnion, i...) = readOnlyError()
+Base.size(x::TimeSpanUnion) = size(x.data)
+
+# `extend` preserves TimeSpanUnion invariants when `by` is negative
+function Base.Broadcast.broadcasted(::typeof(extend), x::TimeSpanUnion, by)
+    if by ≤ Nanosecond(0)
+        TimeSpanUnion(extend.(x.data, by), true, true)
+    else
+        Broadcasted(extend, x, y)
+    end
+end
+
+# `timeunion`: internal method to convert objects to `TimeSpanUnion` or
+# `TimeSpanSignletone` as appropriate
+timeunion(x) = TimeSpanUnion(x)
+timeunion(data::TimeSpan) = TimeSpanSignleton(data)
+timeunion(data::TimeSpanUnion) = data
+
+# `sorted_timespan_union` merges a series of sorted timespans so there is no
+# overlap between timespans
+function sorted_timespan_union(spans::AbstractVector)
+    result = TimeSpans[]
+    sizehint!(result, length(spans))
+    push!(result, spans[1])
+    for span in @view(spans[2:end])
+        if overlaps(result[end], span)
+            result[end] = TimeSpan(start(result[end]), stop(span))
+        else
+            push!(result, span)
+        end
+    end
+    return result
+end
+
+# efficeint implementation of `reduce(union, timespans)`
+function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan}; init=TimeSpan[])
+    spans = timeunion(spans)
+    if isempty(init)
+        return spans
+    else
+        return union(init, spans)
+    end
+end
+
+# set operations use a generic, higher-order function (`mergesets`) that merges
+# two AbstractTimeSpanUnion objects: the passed operator should indicate, given
+# the membership of a given point `t` in x and in y, whether the set operation
+# `OP` should include the given point `t` in the result of `x` `OP` `y`
+const MergableSpans = Union{TimeSpan, AbstractVector{TimeSpan}}
+function Base.intersect(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx && iny,timeunion(x),timeunion(y))
+end
+function Base.union(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx || iny,timeunion(x),timeunion(y))
+end
+function Base.setdiff(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx && !iny,timeunion(x),timeunion(y))
+end
+
+# `mergesets` needs to iterate over the start and end points of
+# each time span in sequence
+@fgenerator function sides(x::AbstractVector{TimeSpan}, sentinal)
+    for item in x
+        @yield (start(item), true)
+        @yield (stop(item), false)
+    end
+    @yield (sentinal, true)
+end
+
+# `mergesets` is the primary internal method implementing set operations (see
+# above for description of `op`). It iterates through the start and stop points
+# in x and y, in order from lowest to highest. The implementation is based on
+# the insight that we can make a decision to include or exclude a given start or
+# stop time of the timespan (based on `op`) and all future points will yield the
+# same decision, until we hit another start or stop point.
+#
+# For each start/stop point, we determine two things: 
+#   1. whether the point should be included in the merge operation or not
+#        (based on its member ship in `x` and `y`) by using `op`
+#   2. whether the next step will 
+#        a. define a region that will include this and future points (a start point)
+#        b. define a region that will exclude this and future points (a stop point)
+function mergesets(op, x::AbstractTimeUnion, y::AbstractTimeUnion)
+    result = TimeSpan[]
+    sizehint!(result, length(x) + length(y))
+
+    sentinal = max(stop(x[end]), stop(y[end])) + Nanosecond(1)
+    xsides = Iterators.Stateful(sides(x, sentinal))
+    ysides = Iterators.Stateful(sides(y, sentinal))
+
+    t = min(start(x[1]), start(y[1]))
+    spanstart = Nanosecond(-1)
+
+    while t < sentinal
+        xpoint, xstart = peek(xsides)
+        ypoint, ystart = peek(ysides)
+
+        # efficiently compute whether the current time point is ∈ x or ∈ y
+        t_in_x = xstart ? t == xpoint : t < xpoint
+        t_in_y = ystart ? t == ypoint : t < ypoint
+
+        # does the next time point define a region that inclues (start)
+        # or excludes (stop) future points.
+        include_points = spanstart < Nanosecond(0)
+        if op(t_in_x, t_in_y) == include_points
+            if include_points
+                spanstart = t
+            else
+                push!(result, TimeSpan(spanstart, t))
+                spanstart = Nanosecond(-1)
+            end
+        end
+        t == xpoint && popfirst!(xsides)
+        t == ypoint && popfirst!(ysides)
+        t = min(peek(xsides)[1], peek(ysides)[1])
+    end
+
+    return TimeSpanUnion(result, true, true)
+end
+
+#####
+##### Sampling from time spans 
+#####
+
+# sample from time points defined by a single time span
+Random.Sampler(rng, x::TimeSpan, rep = Val(Inf)) = SamplerTrivial(x)
+function Base.rand(rng, ::SamplerTrivial{TimeSpan})
+    rand(rng, start(x):(stop(x) - Nanosecond(1)))
+end
+
+# sample from the time points defined by multiple time spans
+function Random.Sampler(rng, x::AbstractVector{TimeSpan}, rep = Val(Inf))
+    unioned = timeunion(x)
+    SamplerSimple(unioned, weights(duration.(unioned)))
+end
+function Base.rand(rng, sampler::SamplerSimple{<:AbstractTimeUnion})
+    span = sample(rng, sampler[], sampler.data)
+    rand(rng, span)
 end
 
 end # module

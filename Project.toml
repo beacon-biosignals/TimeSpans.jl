@@ -5,6 +5,8 @@ version = "0.2.3"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+FGenerators = "4fd0377b-cfdc-4941-97f4-8d7ddbb8981e"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 julia = "1.0"
