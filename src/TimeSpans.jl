@@ -1,7 +1,7 @@
 module TimeSpans
 
 using Base: @propagate_inbounds
-using Dates, StatsBase, FGenerators
+using Dates, StatsBase, ResumableFunctions, Random
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
@@ -28,16 +28,20 @@ construction.
 
 ## Set operations
 
-Time spans implement set operations from `Base` (`union`, `intersect`,
-`setdiff`), which each return an array of timespans, (possibly of length 1), and
-can accept both single time span values and arrays of time spans.
+Time spans implement set operations from `Base` (e.g. `union`, `intersect`,
+`setdiff`), which each return a read-only array of timespans, (possibly of
+length 1), and can accept both single time span values and arrays of time spans.
+Call `collect` on the returned values if you need a writable copy of the
+returned result. An efficient implementation also exists for
+`reduce(union, timespans)`.
 
 ## Sampling
 
-Time spans (and arrays of these objects) implement `rand`, so you can easily
-sample times that file within the specified range. When an array is passed, any
-overlap between time spans is first removed by effectively calling
-`reduce(union, timespans)`.
+Time spans (and arrays of these objects) implement `rand`, which generate random
+time values within the given time span(s). When an array is passed, any overlap
+between time spans is first removed by effectively calling `reduce(union,
+timespans)`.
+
 """
 struct TimeSpan
     start::Nanosecond
@@ -146,8 +150,8 @@ end
 Returns `TimeSpan(start(span), max(start(span), stop(span) + by)`
 """
 function extend(x, by::Period)
-    by = convert(Nanosecond, by)
-    return TimeSpan(start(span), max(start(span), stop(span) + by))
+    newstop = convert(Nanosecond, stop(x)) + convert(Nanosecond, by)
+    return TimeSpan(start(x), max(start(x), newstop))
 end
 
 """
@@ -156,8 +160,6 @@ end
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
 contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
-Base.in(a::TimeSpan, b::TimeSpan) = contains(b, a)
-Base.in(a::Period, b::TimeSpan) = contains(b, a)
 
 """
     overlaps(a, b)
@@ -335,13 +337,13 @@ Base.size(::TimeSpanSingleton) = ()
 Base.setindex(x::TimeSpanSingleton, v) = readOnlyError()
 
 # a `union` of multiple time spans
-struct TimeSpanUnion{A} <: AbstractVector{TimeSpan}
+struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
     data::A
     function TimeSpanUnion(x::AbstractVector{TimeSpan}, issorted=false,
                            nooverlap=false)
-        sorted = issorted ? x : sort(data; by=start)
+        sorted = issorted ? x : sort(x; by=start)
         merged = nooverlap ? sorted : sorted_timespan_union(sorted)
-        return new(merged)
+        return new{typeof(merged)}(merged)
     end
 end
 Base.parent(x::TimeSpanUnion) = x.data
@@ -361,13 +363,13 @@ end
 # `timeunion`: internal method to convert objects to `TimeSpanUnion` or
 # `TimeSpanSignletone` as appropriate
 timeunion(x) = TimeSpanUnion(x)
-timeunion(data::TimeSpan) = TimeSpanSignleton(data)
+timeunion(data::TimeSpan) = TimeSpanSingleton(data)
 timeunion(data::TimeSpanUnion) = data
 
 # `sorted_timespan_union` merges a series of sorted timespans so there is no
 # overlap between timespans
 function sorted_timespan_union(spans::AbstractVector)
-    result = TimeSpans[]
+    result = TimeSpan[]
     sizehint!(result, length(spans))
     push!(result, spans[1])
     for span in @view(spans[2:end])
@@ -405,10 +407,24 @@ end
 function Base.setdiff(x::MergableSpans, y::MergableSpans)
     return mergesets((inx, iny) -> inx && !iny, timeunion(x), timeunion(y))
 end
+function Base.symdiff(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx ⊻ iny, timeunion(x), timeunion(y))
+end
+function Base.issubset(x::MergableSpans, y::MergableSpans)
+    return isempty(setdiff(x, y))
+end
+function Base.issetequal(x::MergableSpans, y::MergableSpans)
+    return all(xᵢ == yᵢ for (xᵢ,yᵢ) in zip(timeunion(x), timeunion(y)))
+end
+@static if VERSION ≥ v"1.5"
+    function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
+        return isempty(intersect(x, y))
+    end
+end
+Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(in(x), y)
 
-# `mergesets` needs to iterate over the start and end points of
-# each time span in sequence
-@fgenerator function sides(x::AbstractVector{TimeSpan}, sentinal)
+# NOTE: the use of @resumable sometimes confuses `Revise` 😢
+@resumable function sides(x::AbstractVector{TimeSpan}, sentinal)
     for item in x
         @yield (start(item), true)
         @yield (stop(item), false)
@@ -429,7 +445,7 @@ end
 #   2. whether the next step will 
 #        a. define a region that will include this and future points (a start point)
 #        b. define a region that will exclude this and future points (a stop point)
-function mergesets(op, x::AbstractTimeUnion, y::AbstractTimeUnion)
+function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     result = TimeSpan[]
     sizehint!(result, length(x) + length(y))
 
@@ -472,17 +488,17 @@ end
 #####
 
 # sample from time points defined by a single time span
-Random.Sampler(rng, x::TimeSpan, rep=Val(Inf)) = SamplerTrivial(x)
-function Base.rand(rng, ::SamplerTrivial{TimeSpan})
+Random.Sampler(rng, x::TimeSpan, rep=Val(Inf)) = Random.SamplerTrivial(x)
+function Base.rand(rng, ::Random.SamplerTrivial{TimeSpan})
     return rand(rng, start(x):(stop(x) - Nanosecond(1)))
 end
 
 # sample from the time points defined by multiple time spans
 function Random.Sampler(rng, x::AbstractVector{TimeSpan}, rep=Val(Inf))
     unioned = timeunion(x)
-    return SamplerSimple(unioned, weights(duration.(unioned)))
+    return Random.SamplerSimple(unioned, weights(duration.(unioned)))
 end
-function Base.rand(rng, sampler::SamplerSimple{<:AbstractTimeUnion})
+function Random.rand(rng, sampler::Random.SamplerSimple{<:AbstractTimeSpanUnion})
     span = sample(rng, sampler[], sampler.data)
     return rand(rng, span)
 end

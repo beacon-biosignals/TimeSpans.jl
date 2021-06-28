@@ -5,10 +5,12 @@ version = "0.2.3"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-FGenerators = "4fd0377b-cfdc-4941-97f4-8d7ddbb8981e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ResumableFunctions = "c5292f4c-5179-55e1-98c5-05642aab7184"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+StatsBase = "0.33"
 julia = "1.0"
 
 [extras]

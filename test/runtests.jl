@@ -25,6 +25,8 @@ using TimeSpans: contains, nanoseconds_per_sample
     by = Second(rand(1:10))
     @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
     @test translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
+    @test extend(t, by) === TimeSpan(start(t), max(start(t), stop(t) + Nanosecond(by)))
+    @test extend(t, -by) === TimeSpan(start(t), max(start(t), stop(t) - Nanosecond(by)))
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 end
 
@@ -88,4 +90,40 @@ end
     @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:1
     @test in(TimeSpan(1,2))(Nanosecond(1))
     @test !in(TimeSpan(1,2))(Nanosecond(2))
+end
+
+@testset "Set operations: (e.g. `intersect`, `union`, `setdiff`)" begin
+    starts = Nanosecond.(rand(1:100_000, 50))
+    spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
+    a, b = spans[1:25], spans[26:end]
+    function testsets(a, b)
+        @test sum(duration, (a ∪ b)) ≤ sum(duration, a) + sum(duration, b)
+        @test sum(duration, setdiff(a, b)) ≤ sum(duration, a)
+        @test sum(duration, (a ∩ b)) + sum(duration, symdiff(a, b)) ==
+            sum(duration, union(a,b))
+        @test a ⊆ (a ∪ b)
+        @test !issetequal(a, b)
+        @test issetequal(a, a)
+        @static if VERSION ≥ v"1.5"
+            @test isdisjoint(setdiff(a, b), b)
+            @test !isdisjoint(a, a)
+        end
+    end
+    testsets(spans[1:25], spans[26:end])
+    testsets(spans[1], spans[26:end])
+    testsets(spans[1:25], spans[26])
+    start(starts[1]) ∈ spans
+
+    # whitebox testing of the internal, `timeunion` function
+    x = reduce(union, spans[2:end], spans[1]) 
+    @test x == TimeSpans.timeunion(spans)
+    @test_throws ErrorException x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    span = TimeSpans.timeunion(spans[1])
+    @test_throws ErrorException span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
+end
+
+@testset "`rand` methods over `TimeSpan` and vectors of it." begin
+    starts = rand(1:100_000, 50)
+    spans = TimeSpan.(starts, starts .+ Nanosecond(rand(1:10_000)))
+    @test all(t ∈ spans for t in rand(spans, 20))
 end
