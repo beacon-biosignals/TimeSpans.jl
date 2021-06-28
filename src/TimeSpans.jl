@@ -4,9 +4,8 @@ using Base: @propagate_inbounds
 using Dates, StatsBase, FGenerators
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
-       shortest_timespan_containing, duration, index_from_time,
-       time_from_index, extend
-
+       shortest_timespan_containing, duration, index_from_time, time_from_index,
+       extend
 
 #####
 ##### `TimeSpan`
@@ -148,7 +147,7 @@ Returns `TimeSpan(start(span), max(start(span), stop(span) + by)`
 """
 function extend(x, by::Period)
     by = convert(Nanosecond, by)
-    TimeSpan(start(span), max(start(span), stop(span) + by))
+    return TimeSpan(start(span), max(start(span), stop(span) + by))
 end
 
 """
@@ -316,15 +315,15 @@ end
 #
 # These invariants are maintained to ensure that sequences of multiple set
 # operations do not have to repeatedly check and preserve these invariants.
-abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan}; end
+abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan} end
 
 function readOnlyError()
     # AbstractTimeSpanUnion types are for read only objects. The reasoning here
     # is that if you can modify the contents of any AbstractTimeSpanUnion, the
     # invariants may no longer hold if the containing struct were to be passed
     # to some new set operation.
-    error("This is a read only value. Call `collect` on the result to get "*
-          "an editable copy.")
+    return error("This is a read only value. Call `collect` on the result to get " *
+                 "an editable copy.")
 end
 
 # a `union` of a single time span
@@ -338,12 +337,11 @@ Base.setindex(x::TimeSpanSingleton, v) = readOnlyError()
 # a `union` of multiple time spans
 struct TimeSpanUnion{A} <: AbstractVector{TimeSpan}
     data::A
-    function TimeSpanUnion(x::AbstractVector{TimeSpan}, 
-        issorted = false, nooverlap = false)
-
-        sorted = issorted ? x : sort(data, by = start)
+    function TimeSpanUnion(x::AbstractVector{TimeSpan}, issorted=false,
+                           nooverlap=false)
+        sorted = issorted ? x : sort(data; by=start)
         merged = nooverlap ? sorted : sorted_timespan_union(sorted)
-        new(merged)
+        return new(merged)
     end
 end
 Base.parent(x::TimeSpanUnion) = x.data
@@ -383,7 +381,8 @@ function sorted_timespan_union(spans::AbstractVector)
 end
 
 # efficeint implementation of `reduce(union, timespans)`
-function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan}; init=TimeSpan[])
+function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan};
+                     init=TimeSpan[])
     spans = timeunion(spans)
     if isempty(init)
         return spans
@@ -396,15 +395,15 @@ end
 # two AbstractTimeSpanUnion objects: the passed operator should indicate, given
 # the membership of a given point `t` in x and in y, whether the set operation
 # `OP` should include the given point `t` in the result of `x` `OP` `y`
-const MergableSpans = Union{TimeSpan, AbstractVector{TimeSpan}}
+const MergableSpans = Union{TimeSpan,AbstractVector{TimeSpan}}
 function Base.intersect(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && iny,timeunion(x),timeunion(y))
+    return mergesets((inx, iny) -> inx && iny, timeunion(x), timeunion(y))
 end
 function Base.union(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx || iny,timeunion(x),timeunion(y))
+    return mergesets((inx, iny) -> inx || iny, timeunion(x), timeunion(y))
 end
 function Base.setdiff(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && !iny,timeunion(x),timeunion(y))
+    return mergesets((inx, iny) -> inx && !iny, timeunion(x), timeunion(y))
 end
 
 # `mergesets` needs to iterate over the start and end points of
@@ -473,19 +472,19 @@ end
 #####
 
 # sample from time points defined by a single time span
-Random.Sampler(rng, x::TimeSpan, rep = Val(Inf)) = SamplerTrivial(x)
+Random.Sampler(rng, x::TimeSpan, rep=Val(Inf)) = SamplerTrivial(x)
 function Base.rand(rng, ::SamplerTrivial{TimeSpan})
-    rand(rng, start(x):(stop(x) - Nanosecond(1)))
+    return rand(rng, start(x):(stop(x) - Nanosecond(1)))
 end
 
 # sample from the time points defined by multiple time spans
-function Random.Sampler(rng, x::AbstractVector{TimeSpan}, rep = Val(Inf))
+function Random.Sampler(rng, x::AbstractVector{TimeSpan}, rep=Val(Inf))
     unioned = timeunion(x)
-    SamplerSimple(unioned, weights(duration.(unioned)))
+    return SamplerSimple(unioned, weights(duration.(unioned)))
 end
 function Base.rand(rng, sampler::SamplerSimple{<:AbstractTimeUnion})
     span = sample(rng, sampler[], sampler.data)
-    rand(rng, span)
+    return rand(rng, span)
 end
 
 end # module
