@@ -93,16 +93,22 @@ end
 end
 
 @testset "Set operations: (e.g. `intersect`, `union`, `setdiff`)" begin
-    starts = Nanosecond.(rand(1:100_000, 50))
+    starts = Nanosecond.(rand(1:100_000, 25))
     spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
+    spans = [spans; translate.(spans, Nanosecond.(round.(Int, getproperty.(duration.(spans), :value) .* (2.0.*rand(length(spans)) .- 1.0))))]
     a, b = spans[1:25], spans[26:end]
+
+    myduration(x::TimeSpan) = duration(x)
+    myduration(x::AbstractVector{TimeSpan}) = sum(duration, x, init = Nanosecond(0))
+    myunion(x::TimeSpan) = x
+    myunion(x::AbstractVector{TimeSpan}) = reduce(∪, x)
     function testsets(a, b)
-        @test sum(duration, (a ∪ b)) ≤ sum(duration, a) + sum(duration, b)
-        @test sum(duration, setdiff(a, b)) ≤ sum(duration, a)
-        @test sum(duration, (a ∩ b)) + sum(duration, symdiff(a, b)) ==
-            sum(duration, union(a,b))
+        @test myduration((a ∪ b)) ≤ myduration(myunion(a)) + myduration(myunion(b))
+        @test myduration(setdiff(a, b)) ≤ myduration(myunion(a))
+        @test myduration((a ∩ b)) + myduration(symdiff(a, b)) ==
+            myduration(union(a,b))
         @test a ⊆ (a ∪ b)
-        @test !issetequal(a, b)
+        @test !issetequal(a, setdiff(a, b))
         @test issetequal(a, a)
         @static if VERSION ≥ v"1.5"
             @test isdisjoint(setdiff(a, b), b)

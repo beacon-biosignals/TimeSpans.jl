@@ -1,7 +1,9 @@
 module TimeSpans
 
+# TODO: remove me!!!
+using Infiltrator
 using Base: @propagate_inbounds
-using Dates, StatsBase, ResumableFunctions, Random
+using Dates, StatsBase, Random # ResumableFunctions
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
@@ -332,9 +334,9 @@ end
 struct TimeSpanSingleton <: AbstractTimeSpanUnion
     data::TimeSpan
 end
-@propagate_inbounds Base.getindex(x::TimeSpanSingleton) = x.data
-Base.size(::TimeSpanSingleton) = ()
-Base.setindex(x::TimeSpanSingleton, v) = readOnlyError()
+@propagate_inbounds Base.getindex(x::TimeSpanSingleton, i...) = x.data
+Base.size(::TimeSpanSingleton) = (1,)
+Base.setindex(::TimeSpanSingleton, _) = readOnlyError()
 
 # a `union` of multiple time spans
 struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
@@ -414,22 +416,78 @@ function Base.issubset(x::MergableSpans, y::MergableSpans)
     return isempty(setdiff(x, y))
 end
 function Base.issetequal(x::MergableSpans, y::MergableSpans)
-    return all(xᵢ == yᵢ for (xᵢ,yᵢ) in zip(timeunion(x), timeunion(y)))
+    x, y = timeunion.((x,y))
+    length(x) != length(y) && return false
+    # @infiltrate
+    # why is this equal when collect(zip(x, y))[1][1] == collect(zip(x, y))[1][2]
+    # is false?
+    # return all(@show(xᵢ) == @show(yᵢ) for (xᵢ,yᵢ) in zip(x, y))
+    return all(xᵢ == yᵢ for (xᵢ,yᵢ) in zip(x, y))
 end
 @static if VERSION ≥ v"1.5"
     function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
         return isempty(intersect(x, y))
     end
 end
-Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(in(x), y)
+Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
 # NOTE: the use of @resumable sometimes confuses `Revise` 😢
-@resumable function sides(x::AbstractVector{TimeSpan}, sentinal)
-    for item in x
-        @yield (start(item), true)
-        @yield (stop(item), false)
+# @resumable function sides(x::AbstractVector{TimeSpan}, sentinal)
+#     for item in x
+#         @yield (start(item), true)
+#         @yield (stop(item), false)
+#     end
+#     @yield (sentinal, true)
+# end
+
+# # so we just implement the iterator manually...
+# struct SidesItr{A,P}
+#     data::A
+#     sentinal::P
+# end
+# sides(x::AbstractVector{TimeSpan}, sentinal) = SidesItr(x, sentinal)
+# function Base.iterate(x::SidesItr, (index, isstart) = (1, true))
+#     if index ≤ length(x.data)
+#         if isstart
+#             return (start(x.data[index]), isstart), (index, false)
+#         else
+#             return (stop(x.data[index]), isstart), (index+1, true)
+#         end
+#     elseif index == length(x.data)+1
+#         return (x.sentinal, true), (index+1, false)
+#     else
+#         return nothing
+#     end
+# end
+
+
+# `sortedsides` is an internal method returns an iterator over the start and
+# stop time points of two TimeSpanUnion's in order from earliest to latest time
+# point.
+function sortsides(x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
+    return SortedSides(x,y)
+end
+struct SortedSides{A,B}
+    a::A
+    b::B
+end
+Base.length(x::SortedSides) = 2length(x.a) + 2length(x.b)
+struct End; end
+start(::End) = typemax(Nanosecond)
+stop(::End) = typemax(Nanosecond)
+side(x::TimeSpan, isstart) = isstart ? start(x) : stop(x)
+function Base.iterate(sides::SortedSides, ((i, istart), (j, jstart)) = ((1, true), (1, true)))
+    a, b = get(sides.a, i, End()), get(sides.b, i, End())
+    @infiltrate
+    if side(a, istart) < side(b, istart)
+        state = istart ? ((i, false), (j, jstart)) : ((i+1, true), (j, jstart))
+        return (start(a), istart, true), state
+    elseif side(b, istart) < typemax(Nanosecond)
+        state = jstart ? ((i, istart), (j, false)) : ((i, istart), (j+1, true))
+        return (start(b), jstart, false), state
+    else
+        return nothing
     end
-    @yield (sentinal, true)
 end
 
 # `mergesets` is the primary internal method implementing set operations (see
@@ -449,35 +507,36 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     result = TimeSpan[]
     sizehint!(result, length(x) + length(y))
 
-    sentinal = max(stop(x[end]), stop(y[end])) + Nanosecond(1)
-    xsides = Iterators.Stateful(sides(x, sentinal))
-    ysides = Iterators.Stateful(sides(y, sentinal))
+    spanstart = Nanosecond(0)
 
-    t = min(start(x[1]), start(y[1]))
-    spanstart = Nanosecond(-1)
+    # is the given time point included or excluded from x and/or y?
+    t_in_x = false
+    t_in_y = false
+    
+    # does the next time point we add to `result` define a region that
+    # inclues (start) or excludes (stop) future points.
+    point_will_include = true
 
-    while t < sentinal
-        xpoint, xstart = peek(xsides)
-        ypoint, ystart = peek(ysides)
+    for (t, isstart, fromx) in sortsides(x, y)
+        if fromx
+            t_in_x = isstart
+        else
+            t_in_y = isstart
+        end
 
-        # efficiently compute whether the current time point is ∈ x or ∈ y
-        t_in_x = xstart ? t == xpoint : t < xpoint
-        t_in_y = ystart ? t == ypoint : t < ypoint
+        # should the current time point be included or excluded from the result?
+        include_t = op(t_in_x, t_in_y)
 
-        # does the next time point define a region that inclues (start)
-        # or excludes (stop) future points.
-        include_points = spanstart < Nanosecond(0)
-        if op(t_in_x, t_in_y) == include_points
-            if include_points
+        # do we add a new time point?
+        if include_t == point_will_include
+            if point_will_include
                 spanstart = t
+                point_will_include = false
             else
                 push!(result, TimeSpan(spanstart, t))
-                spanstart = Nanosecond(-1)
+                point_will_include = true
             end
         end
-        t == xpoint && popfirst!(xsides)
-        t == ypoint && popfirst!(ysides)
-        t = min(peek(xsides)[1], peek(ysides)[1])
     end
 
     return TimeSpanUnion(result, true, true)
