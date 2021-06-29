@@ -118,10 +118,10 @@ end
     testsets(spans[1:25], spans[26:end])
     testsets(spans[1], spans[26:end])
     testsets(spans[1:25], spans[26])
-    start(starts[1]) ∈ spans
+    @test start(starts[1]) ∈ spans
 
     # whitebox testing of the internal, `timeunion` function
-    x = reduce(union, spans[2:end], spans[1]) 
+    x = reduce(union, spans[2:end], init = spans[1]) 
     @test x == TimeSpans.timeunion(spans)
     @test_throws ErrorException x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
     span = TimeSpans.timeunion(spans[1])
@@ -129,7 +129,7 @@ end
 end
 
 @testset "`rand` methods over `TimeSpan` and vectors of it." begin
-    starts = rand(1:100_000, 50)
+    starts = Nanosecond.(rand(1:100_000, 50))
     spans = TimeSpan.(starts, starts .+ Nanosecond(rand(1:10_000)))
     @test all(t ∈ spans for t in rand(spans, 20))
 end

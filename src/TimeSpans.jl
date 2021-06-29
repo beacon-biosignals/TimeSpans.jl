@@ -3,7 +3,7 @@ module TimeSpans
 # TODO: remove me!!!
 using Infiltrator
 using Base: @propagate_inbounds
-using Dates, StatsBase, Random # ResumableFunctions
+using Dates, StatsBase, Random #, ResumableFunctions
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
@@ -388,6 +388,7 @@ end
 function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan};
                      init=TimeSpan[])
     spans = timeunion(spans)
+    init = timeunion(spans)
     if isempty(init)
         return spans
     else
@@ -468,24 +469,35 @@ function sortsides(x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     return SortedSides(x,y)
 end
 struct SortedSides{A,B}
-    a::A
-    b::B
+    x::A
+    y::B
 end
-Base.length(x::SortedSides) = 2length(x.a) + 2length(x.b)
+Base.length(sides::SortedSides) = 2length(sides.x) + 2length(sides.y)
 struct End; end
 start(::End) = typemax(Nanosecond)
 stop(::End) = typemax(Nanosecond)
-side(x::TimeSpan, isstart) = isstart ? start(x) : stop(x)
-function Base.iterate(sides::SortedSides, ((i, istart), (j, jstart)) = ((1, true), (1, true)))
-    a, b = get(sides.a, i, End()), get(sides.b, i, End())
-    @infiltrate
-    if side(a, istart) < side(b, istart)
-        state = istart ? ((i, false), (j, jstart)) : ((i+1, true), (j, jstart))
-        return (start(a), istart, true), state
-    elseif side(b, istart) < typemax(Nanosecond)
-        state = jstart ? ((i, istart), (j, false)) : ((i, istart), (j+1, true))
-        return (start(b), jstart, false), state
+side(x, isstart) = isstart ? start(x) : stop(x)
+# iterates over the time points and flags indicating if the time point is
+# located in the set of times for x and/or for y (time, inx, iny)
+function Base.iterate(sides::SortedSides, ((xi, xstart), (yi, ystart)) = ((1, true), (1, true)))
+    x, y = get(sides.x, xi, End()), get(sides.y, yi, End())
+    if side(x, xstart) < side(y, ystart)
+        # advance x
+        xstate = xstart ? (xi, false) : (xi+1, true)
+        return (side(x, xstart), xstart, !ystart), (xstate, (yi, ystart))
+    elseif side(y, ystart) < typemax(Nanosecond)
+        # advance both x and y
+        if side(x, xstart) == side(y, ystart)
+            xstate = xstart ? (xi, false) : (xi+1, true)
+            ystate = ystart ? (yi, false) : (yi+1, true)
+            return (side(x, xstart), xstart, ystart), (xstate, ystate)
+        # advance y
+        else
+            ystate = ystart ? (yi, false) : (yi+1, true)
+            return (side(y, ystart), !xstart, ystart), ((xi, xstart), ystate)
+        end
     else
+        # finish iteration
         return nothing
     end
 end
@@ -517,12 +529,10 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     # inclues (start) or excludes (stop) future points.
     point_will_include = true
 
-    for (t, isstart, fromx) in sortsides(x, y)
-        if fromx
-            t_in_x = isstart
-        else
-            t_in_y = isstart
-        end
+    for (t, t_in_x, t_in_y) in sortsides(x, y)
+        # @show t
+        # @show t_in_x
+        # @show t_in_y
 
         # should the current time point be included or excluded from the result?
         include_t = op(t_in_x, t_in_y)
@@ -547,18 +557,37 @@ end
 #####
 
 # sample from time points defined by a single time span
-Random.Sampler(rng, x::TimeSpan, rep=Val(Inf)) = Random.SamplerTrivial(x)
-function Base.rand(rng, ::Random.SamplerTrivial{TimeSpan})
-    return rand(rng, start(x):(stop(x) - Nanosecond(1)))
+struct TimeSpanSampler{S} <: Random.Sampler{Nanosecond}
+    sampler::S
+end
+Random.gentype(::TimeSpan) = Nanosecond
+
+function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan, 
+    ::Random.Repetition) 
+
+    return TimeSpanSampler(Random.Sampler(RNG, start(x).value:(stop(x).value - 1)))
+end
+function Base.rand(rng::Random.AbstractRNG, x::TimeSpanSampler)
+    return Nanosecond(rand(rng, x.sampler))
 end
 
-# sample from the time points defined by multiple time spans
-function Random.Sampler(rng, x::AbstractVector{TimeSpan}, rep=Val(Inf))
-    unioned = timeunion(x)
-    return Random.SamplerSimple(unioned, weights(duration.(unioned)))
+struct TimeSpanUnionSampler{T,W} <: Random.Sampler{Nanosecond}
+    x::T
+    weights::W
 end
-function Random.rand(rng, sampler::Random.SamplerSimple{<:AbstractTimeSpanUnion})
-    span = sample(rng, sampler[], sampler.data)
+Random.gentype(::AbstractVector{TimeSpan}) = Nanosecond
+# sample from the time points defined by multiple time spans
+function Random.Sampler(::Type{<:Random.AbstractRNG}, 
+    x::AbstractVector{TimeSpan}, ::Random.Repetition)
+
+    unioned = timeunion(x)
+    wts = weights(getproperty.(duration.(unioned), :value))
+    return TimeSpanUnionSampler(x, wts)
+end
+
+function Random.rand(rng::Random.AbstractRNG, sampler::TimeSpanUnionSampler)
+
+    span = sample(rng, sampler.x, sampler.weights)
     return rand(rng, span)
 end
 
