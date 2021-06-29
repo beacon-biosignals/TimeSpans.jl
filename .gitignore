@@ -132,3 +132,4 @@ Manifest.toml
 
 # misc
 *.DS_Store
+.vscode
