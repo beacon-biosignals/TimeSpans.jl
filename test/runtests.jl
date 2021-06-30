@@ -95,7 +95,7 @@ end
 @testset "Set operations: (e.g. `intersect`, `union`, `setdiff`)" begin
     
     myduration(x::TimeSpan) = duration(x)
-    myduration(x::AbstractVector{TimeSpan}) = sum(duration, x, init = Nanosecond(0))
+    myduration(x::AbstractVector{TimeSpan}) = reduce(+, map(duration, x), init = Nanosecond(0))
     myunion(x::TimeSpan) = x
     myunion(x::AbstractVector{TimeSpan}) = reduce(∪, x)
     function testsets(a, b)
