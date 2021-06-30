@@ -373,6 +373,8 @@ timeunion(data::TimeSpanUnion) = data
 # overlap between timespans
 function sorted_timespan_union(spans::AbstractVector)
     result = TimeSpan[]
+    isempty(spans) && return result
+
     sizehint!(result, length(spans))
     push!(result, spans[1])
     for span in @view(spans[2:end])
@@ -389,7 +391,7 @@ end
 function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan};
                      init=TimeSpan[])
     spans = timeunion(spans)
-    init = timeunion(spans)
+    init = timeunion(init)
     if isempty(init)
         return spans
     else
@@ -534,7 +536,7 @@ Random.gentype(::TimeSpan) = Nanosecond
 
 function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan,
                         ::Random.Repetition)
-                        
+
     sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1))
     return TimeSpanSampler(sample)
 end

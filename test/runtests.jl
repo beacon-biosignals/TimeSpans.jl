@@ -93,11 +93,7 @@ end
 end
 
 @testset "Set operations: (e.g. `intersect`, `union`, `setdiff`)" begin
-    starts = Nanosecond.(rand(1:100_000, 25))
-    spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
-    spans = [spans; translate.(spans, Nanosecond.(round.(Int, getproperty.(duration.(spans), :value) .* (2.0.*rand(length(spans)) .- 1.0))))]
-    a, b = spans[1:25], spans[26:end]
-
+    
     myduration(x::TimeSpan) = duration(x)
     myduration(x::AbstractVector{TimeSpan}) = sum(duration, x, init = Nanosecond(0))
     myunion(x::TimeSpan) = x
@@ -115,14 +111,28 @@ end
             @test !isdisjoint(a, a)
         end
     end
+
+    @test isempty(reduce(∪, TimeSpan[]))
+
+    spans = [TimeSpan(Nanosecond(i), Nanosecond(i+3)) for i in 1:5:15]
+    spans = [spans; translate.(spans, Nanosecond.(1:2:5))]
+    @test all(start.(spans) .∈ Ref(spans))
+    testsets(spans[1:3], spans[4:end])
+    testsets(spans[1], spans[4:end])
+    testsets(spans[1:3], spans[4])
+
+    starts = Nanosecond.(rand(1:100_000, 25))
+    spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
+    spans = [spans; translate.(spans, Nanosecond.(round.(Int, getproperty.(duration.(spans), :value) .* (2.0.*rand(length(spans)) .- 1.0))))]
+    a, b = spans[1:25], spans[26:end]
+    @test all(start.(spans) .∈ Ref(spans))
     testsets(spans[1:25], spans[26:end])
     testsets(spans[1], spans[26:end])
     testsets(spans[1:25], spans[26])
-    @test start(starts[1]) ∈ spans
 
     # whitebox testing of the internal, `timeunion` function
     x = reduce(union, spans[2:end], init = spans[1]) 
-    @test x == TimeSpans.timeunion(spans)
+    @test all(x .== TimeSpans.timeunion(spans))
     @test_throws ErrorException x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
     span = TimeSpans.timeunion(spans[1])
     @test_throws ErrorException span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
