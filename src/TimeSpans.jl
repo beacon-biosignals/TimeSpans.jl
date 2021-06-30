@@ -4,7 +4,8 @@ using Dates, StatsBase, Random
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
-       extend, TimeSpanUnion
+       extend, TimeSpanUnion, shrinkall!, translateall!, shrinkall, 
+       translateall, TimeSpanUnion
 
 #####
 ##### `TimeSpan`
@@ -347,6 +348,11 @@ the following invariants.
 
 Using this type helps to ensure that sequences of multiple set operations do not
 have to repeatedly check and preserve these invariants.
+
+If you need to modify these sets yourself you can use one of the invariant
+preserving methods (`shrinkall!`, `translateall!`, etc...) or you can call
+`collect` and modify the resulting copy. Future calls to set operations
+will have to re-establish the invariants of such a copy.
 """
 # a `union` of multiple time spans
 struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
@@ -530,6 +536,87 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
 
     return TimeSpanUnion(result, true, true)
 end
+
+#####
+##### Invariant preserving operations over TimeSpanUnions 
+#####
+
+Base.copy(x::TimeSpanUnion) = TimeSpanUnion(copy(x.data), true, true)
+
+# some helper functions
+ispos(by::Period) = by > Nanosecond(0)
+ispos(xs) = all(x -> x > Nanosecond(0), xs)
+hasshape(by::Period) = false
+ismultidim(x) = Base.IteratorSize(x) isa Base.HasShape && length(size(x)) > 1
+
+"""
+    `shrinkall!(x::TimeSpanUnion, by)`
+
+Computes x .= extend.(x, by), throwing an error if it cannot be guaranteed that
+the invariants of the time span union are maintained.
+"""
+function shrinkall!(x::TimeSpanUnion, by)
+    if ispos(by)
+        error("Expected a non-positive value")
+    elseif ismultidim(by)
+        error("Shape of time spans and `by` could produce overlapping time "*
+            "spans. Call `collect` on the time spans first.")
+    else
+        x.data .= extend.(x.data, by)
+    end
+
+    return x
+end
+
+"""
+    `shrinkall!(x::AbstractVector{TimeSpan}, by)`
+
+Computes x .= extend.(x, by)
+"""
+shrinkall!(x::AbstractVector{TimeSpan}, by) = x .= extend.(x, by)
+
+"""
+    `shrinkall(x, by)`
+
+Calls `shrinkall!(copy(x), by)`.
+"""
+shrinkall(x, by) = shrinkall!(copy(x), by)
+
+"""
+    `translateall!(x::TimeSpanUnion, by)`
+
+Computes x .= translate.(x, by), throwing an error if it cannot be guaranteed that
+the invariants of the time span union are maintained. 
+"""
+function translateall!(x::TimeSpanUnion, by::Period)
+    x.data .= translate.(x.data, by)
+    return x
+end
+# NOTE: we do not implement methods for TimeSpanSingleton because they should
+# never be returned by any of the set-related methods (they are purely an
+# internal implementation detail to make `mergesets` easier to implement).
+
+function translateall!(::TimeSpanUnion, by)
+    error("""The value of `by` is not a time period. It could be an aribtrary
+    iterable object and the passed value is a time union. Translating each value
+    in this time union by a different amount could lead to overlap. Call
+    `collect` on the time union first if you want to translate each time span by
+    a different value.""")
+end
+
+"""
+    `translateall!(x::AbstractVector{TimeSpan}, by)`
+
+Computes x .= translate.(x, by)
+"""
+translateall!(x::AbstractVector{TimeSpan}, by) = x .= translate.(x, by)
+
+"""
+    `translateall(x, by)`
+
+Calls `translateall!(copy(x), by)`
+"""
+translateall(x, by) = translateall!(copy(x), by)
 
 #####
 ##### Sampling from time spans 

@@ -136,6 +136,24 @@ end
     @test_throws ErrorException x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
     span = TimeSpans.timeunion(spans[1])
     @test_throws ErrorException span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
+
+    # test invariant preserving operations on unions
+    x = reduce(union, spans[1:25])
+    xext = shrinkall(x, Nanosecond(-1))
+    @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws ErrorException shrinkall(x, Nanosecond(1))
+
+    xext = shrinkall(x, Nanosecond.(rand(.-(1:5), length(x))))
+    @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws ErrorException shrinkall(x, Nanosecond.(rand(1:5, length(x))))
+    @test length(shrinkall(collect(x), Nanosecond.(rand(1:5, length(x))))) ==
+        length(x)
+
+    xtrans = translateall(x, Nanosecond(5))
+    @test_throws ErrorException xtrans[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws ErrorException translateall(x, Nanosecond.(rand(1:5, length(x))))
+    @test length(translateall(collect(x), Nanosecond.(rand(1:5, length(x))))) ==
+        length(x)
 end
 
 @testset "`rand` methods over `TimeSpan` and vectors of it." begin
