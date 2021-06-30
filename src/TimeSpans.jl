@@ -632,7 +632,7 @@ function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan,
                         ::Random.Repetition)
 
     sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1))
-    return TimeSpanSampler(sample)
+    return TimeSpanSampler(sampler)
 end
 function Base.rand(rng::Random.AbstractRNG, x::TimeSpanSampler)
     return Nanosecond(rand(rng, x.sampler))
