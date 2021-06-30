@@ -4,7 +4,7 @@ using Dates, StatsBase, Random
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
-       extend, TimeSpanUnion, shrinkall!, translateall!, shrinkall, 
+       extend, TimeSpanUnion, shrinkall!, translateall!, shrinkall,
        translateall, TimeSpanUnion
 
 #####
@@ -559,8 +559,8 @@ function shrinkall!(x::TimeSpanUnion, by)
     if ispos(by)
         error("Expected a non-positive value")
     elseif ismultidim(by)
-        error("Shape of time spans and `by` could produce overlapping time "*
-            "spans. Call `collect` on the time spans first.")
+        error("Shape of time spans and `by` could produce overlapping time " *
+              "spans. Call `collect` on the time spans first.")
     else
         x.data .= extend.(x.data, by)
     end
@@ -597,11 +597,11 @@ end
 # internal implementation detail to make `mergesets` easier to implement).
 
 function translateall!(::TimeSpanUnion, by)
-    error("""The value of `by` is not a time period. It could be an aribtrary
-    iterable object and the passed value is a time union. Translating each value
-    in this time union by a different amount could lead to overlap. Call
-    `collect` on the time union first if you want to translate each time span by
-    a different value.""")
+    return error("""The value of `by` is not a time period. It could be an aribtrary
+           iterable object and the passed value is a time union. Translating each value
+           in this time union by a different amount could lead to overlap. Call
+           `collect` on the time union first if you want to translate each time span by
+           a different value.""")
 end
 
 """
@@ -630,7 +630,6 @@ Random.gentype(::TimeSpan) = Nanosecond
 
 function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan,
                         ::Random.Repetition)
-
     sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1))
     return TimeSpanSampler(sampler)
 end
