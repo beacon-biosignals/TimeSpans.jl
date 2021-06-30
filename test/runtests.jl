@@ -139,14 +139,14 @@ end
 
     # test invariant preserving operations on unions
     x = reduce(union, spans[1:25])
-    xext = shrinkall(x, Nanosecond(-1))
+    xext = shrinkall(x, Nanosecond(1))
     @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    @test_throws ErrorException shrinkall(x, Nanosecond(1))
+    @test_throws ErrorException shrinkall(x, Nanosecond(-1))
 
-    xext = shrinkall(x, Nanosecond.(rand(.-(1:5), length(x))))
+    xext = shrinkall(x, Nanosecond.(rand(1:5, length(x))))
     @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    @test_throws ErrorException shrinkall(x, Nanosecond.(rand(1:5, length(x))))
-    @test length(shrinkall(collect(x), Nanosecond.(rand(1:5, length(x))))) ==
+    @test_throws ErrorException shrinkall(x, Nanosecond.(rand(.-(1:5), length(x))))
+    @test length(shrinkall(collect(x), Nanosecond.(rand(.-(1:5), length(x))))) ==
         length(x)
 
     xtrans = translateall(x, Nanosecond(5))

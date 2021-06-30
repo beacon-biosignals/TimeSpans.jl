@@ -544,25 +544,25 @@ end
 Base.copy(x::TimeSpanUnion) = TimeSpanUnion(copy(x.data), true, true)
 
 # some helper functions
-ispos(by::Period) = by > Nanosecond(0)
-ispos(xs) = all(x -> x > Nanosecond(0), xs)
+isneg(by::Period) = by < Nanosecond(0)
+isneg(xs) = all(x -> x < Nanosecond(0), xs)
 hasshape(by::Period) = false
 ismultidim(x) = Base.IteratorSize(x) isa Base.HasShape && length(size(x)) > 1
 
 """
     `shrinkall!(x::TimeSpanUnion, by)`
 
-Computes x .= extend.(x, by), throwing an error if it cannot be guaranteed that
+Computes x .= extend.(x, .-by), throwing an error if it cannot be guaranteed that
 the invariants of the time span union are maintained.
 """
 function shrinkall!(x::TimeSpanUnion, by)
-    if ispos(by)
-        error("Expected a non-positive value")
+    if isneg(by)
+        error("Expected a non-negative value")
     elseif ismultidim(by)
         error("Shape of time spans and `by` could produce overlapping time " *
               "spans. Call `collect` on the time spans first.")
     else
-        x.data .= extend.(x.data, by)
+        x.data .= extend.(x.data, .-by)
     end
 
     return x
@@ -571,9 +571,9 @@ end
 """
     `shrinkall!(x::AbstractVector{TimeSpan}, by)`
 
-Computes x .= extend.(x, by)
+Computes x .= extend.(x, .-by)
 """
-shrinkall!(x::AbstractVector{TimeSpan}, by) = x .= extend.(x, by)
+shrinkall!(x::AbstractVector{TimeSpan}, by) = x .= extend.(x, .-by)
 
 """
     `shrinkall(x, by)`
