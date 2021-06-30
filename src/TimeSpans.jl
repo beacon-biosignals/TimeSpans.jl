@@ -1,9 +1,6 @@
 module TimeSpans
 
-# TODO: remove me!!!
-using Infiltrator
-using Base: @propagate_inbounds
-using Dates, StatsBase, Random #, ResumableFunctions
+using Dates, StatsBase, Random
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
@@ -50,7 +47,8 @@ struct TimeSpan
     stop::Nanosecond
     function TimeSpan(start::Nanosecond, stop::Nanosecond)
         stop += Nanosecond(start == stop)
-        start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
+        start < stop ||
+            throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
         return new(start, stop)
     end
     TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
@@ -66,7 +64,10 @@ TimeSpan(x) = TimeSpan(start(x), stop(x))
 Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
-Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Union{Tuple, AbstractArray}) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
+function Base.findall(pred::Base.Fix2{typeof(in),TimeSpan},
+                      obj::Union{Tuple,AbstractArray})
+    return invoke(findall, Tuple{Function,typeof(obj)}, pred, obj)
+end
 
 #####
 ##### pretty printing
@@ -334,7 +335,7 @@ end
 struct TimeSpanSingleton <: AbstractTimeSpanUnion
     data::TimeSpan
 end
-@propagate_inbounds Base.getindex(x::TimeSpanSingleton, i...) = x.data
+Base.@propagate_inbounds Base.getindex(x::TimeSpanSingleton, i...) = x.data
 Base.size(::TimeSpanSingleton) = (1,)
 Base.setindex(::TimeSpanSingleton, _) = readOnlyError()
 
@@ -349,7 +350,7 @@ struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
     end
 end
 Base.parent(x::TimeSpanUnion) = x.data
-@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
+Base.@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
 Base.setindex(x::TimeSpanUnion, i...) = readOnlyError()
 Base.size(x::TimeSpanUnion) = size(x.data)
 
@@ -417,13 +418,13 @@ function Base.issubset(x::MergableSpans, y::MergableSpans)
     return isempty(setdiff(x, y))
 end
 function Base.issetequal(x::MergableSpans, y::MergableSpans)
-    x, y = timeunion.((x,y))
+    x, y = timeunion.((x, y))
     length(x) != length(y) && return false
     # @infiltrate
     # why is this equal when collect(zip(x, y))[1][1] == collect(zip(x, y))[1][2]
     # is false?
     # return all(@show(xᵢ) == @show(yᵢ) for (xᵢ,yᵢ) in zip(x, y))
-    return all(xᵢ == yᵢ for (xᵢ,yᵢ) in zip(x, y))
+    return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
 end
 @static if VERSION ≥ v"1.5"
     function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
@@ -432,68 +433,41 @@ end
 end
 Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
-# NOTE: the use of @resumable sometimes confuses `Revise` 😢
-# @resumable function sides(x::AbstractVector{TimeSpan}, sentinal)
-#     for item in x
-#         @yield (start(item), true)
-#         @yield (stop(item), false)
-#     end
-#     @yield (sentinal, true)
-# end
+# `sortedsides` is an internal method that returns an iterator over the start
+# and stop time points of two TimeSpanUnion's in order from earliest to latest
+# time point. The returned value iterates over the time points and two flags
+# which indicate whether the returned time point is located in x and in y. (Start
+# points are in their set, end points are not)
 
-# # so we just implement the iterator manually...
-# struct SidesItr{A,P}
-#     data::A
-#     sentinal::P
-# end
-# sides(x::AbstractVector{TimeSpan}, sentinal) = SidesItr(x, sentinal)
-# function Base.iterate(x::SidesItr, (index, isstart) = (1, true))
-#     if index ≤ length(x.data)
-#         if isstart
-#             return (start(x.data[index]), isstart), (index, false)
-#         else
-#             return (stop(x.data[index]), isstart), (index+1, true)
-#         end
-#     elseif index == length(x.data)+1
-#         return (x.sentinal, true), (index+1, false)
-#     else
-#         return nothing
-#     end
-# end
-
-
-# `sortedsides` is an internal method returns an iterator over the start and
-# stop time points of two TimeSpanUnion's in order from earliest to latest time
-# point.
 function sortsides(x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
-    return SortedSides(x,y)
+    return SortedSides(x, y)
 end
 struct SortedSides{A,B}
     x::A
     y::B
 end
 Base.length(sides::SortedSides) = 2length(sides.x) + 2length(sides.y)
-struct End; end
+struct End end
 start(::End) = typemax(Nanosecond)
 stop(::End) = typemax(Nanosecond)
 side(x, isstart) = isstart ? start(x) : stop(x)
-# iterates over the time points and flags indicating if the time point is
-# located in the set of times for x and/or for y (time, inx, iny)
-function Base.iterate(sides::SortedSides, ((xi, xstart), (yi, ystart)) = ((1, true), (1, true)))
+
+function Base.iterate(sides::SortedSides,
+                      ((xi, xstart), (yi, ystart))=((1, true), (1, true)))
     x, y = get(sides.x, xi, End()), get(sides.y, yi, End())
     if side(x, xstart) < side(y, ystart)
         # advance x
-        xstate = xstart ? (xi, false) : (xi+1, true)
+        xstate = xstart ? (xi, false) : (xi + 1, true)
         return (side(x, xstart), xstart, !ystart), (xstate, (yi, ystart))
     elseif side(y, ystart) < typemax(Nanosecond)
         # advance both x and y
         if side(x, xstart) == side(y, ystart)
-            xstate = xstart ? (xi, false) : (xi+1, true)
-            ystate = ystart ? (yi, false) : (yi+1, true)
+            xstate = xstart ? (xi, false) : (xi + 1, true)
+            ystate = ystart ? (yi, false) : (yi + 1, true)
             return (side(x, xstart), xstart, ystart), (xstate, ystate)
-        # advance y
+            # advance y
         else
-            ystate = ystart ? (yi, false) : (yi+1, true)
+            ystate = ystart ? (yi, false) : (yi + 1, true)
             return (side(y, ystart), !xstart, ystart), ((xi, xstart), ystate)
         end
     else
@@ -524,16 +498,12 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     # is the given time point included or excluded from x and/or y?
     t_in_x = false
     t_in_y = false
-    
+
     # does the next time point we add to `result` define a region that
     # inclues (start) or excludes (stop) future points.
     point_will_include = true
 
     for (t, t_in_x, t_in_y) in sortsides(x, y)
-        # @show t
-        # @show t_in_x
-        # @show t_in_y
-
         # should the current time point be included or excluded from the result?
         include_t = op(t_in_x, t_in_y)
 
@@ -562,31 +532,30 @@ struct TimeSpanSampler{S} <: Random.Sampler{Nanosecond}
 end
 Random.gentype(::TimeSpan) = Nanosecond
 
-function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan, 
-    ::Random.Repetition) 
-
-    return TimeSpanSampler(Random.Sampler(RNG, start(x).value:(stop(x).value - 1)))
+function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan,
+                        ::Random.Repetition)
+                        
+    sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1))
+    return TimeSpanSampler(sample)
 end
 function Base.rand(rng::Random.AbstractRNG, x::TimeSpanSampler)
     return Nanosecond(rand(rng, x.sampler))
 end
 
+# sample from the time points defined by multiple time spans
 struct TimeSpanUnionSampler{T,W} <: Random.Sampler{Nanosecond}
     x::T
     weights::W
 end
 Random.gentype(::AbstractVector{TimeSpan}) = Nanosecond
-# sample from the time points defined by multiple time spans
-function Random.Sampler(::Type{<:Random.AbstractRNG}, 
-    x::AbstractVector{TimeSpan}, ::Random.Repetition)
-
+function Random.Sampler(::Type{<:Random.AbstractRNG},
+                        x::AbstractVector{TimeSpan}, ::Random.Repetition)
     unioned = timeunion(x)
     wts = weights(getproperty.(duration.(unioned), :value))
     return TimeSpanUnionSampler(x, wts)
 end
 
 function Random.rand(rng::Random.AbstractRNG, sampler::TimeSpanUnionSampler)
-
     span = sample(rng, sampler.x, sampler.weights)
     return rand(rng, span)
 end
