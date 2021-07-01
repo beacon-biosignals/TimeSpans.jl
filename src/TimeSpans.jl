@@ -5,7 +5,7 @@ using Dates, StatsBase, Random
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
        extend, TimeSpanUnion, shrinkall!, translateall!, shrinkall,
-       translateall, TimeSpanUnion
+       translateall
 
 #####
 ##### `TimeSpan`
@@ -316,12 +316,8 @@ end
 # represents a union of one or more time spans
 abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan} end
 
-# Time span unions are read only, define a clear error message.
+# Time span unions are read only; define a clear error message.
 function readOnlyError()
-    # AbstractTimeSpanUnion types are for read only objects. The reasoning here
-    # is that if you can modify the contents of any AbstractTimeSpanUnion, the
-    # invariants may no longer hold if the containing struct were to be passed
-    # to some new set operation.
     return error("This is a read only value. Call `collect` on the result to get " *
                  "an editable copy or use one of the invariant preserving methods.")
 end
@@ -369,8 +365,8 @@ Base.@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
 Base.setindex(x::TimeSpanUnion, i...) = readOnlyError()
 Base.size(x::TimeSpanUnion) = size(x.data)
 
-# `timeunion`: internal function to convert objects to `TimeSpanUnion` or
-# `TimeSpanSignletone` as appropriate
+# `timeunion`: internal function to convert objects to an
+# `AbstractTimeSpanUnion` value
 timeunion(x) = TimeSpanUnion(x)
 timeunion(data::TimeSpan) = TimeSpanSingleton(data)
 timeunion(data::TimeSpanUnion) = data
@@ -428,10 +424,6 @@ end
 function Base.issetequal(x::MergableSpans, y::MergableSpans)
     x, y = timeunion.((x, y))
     length(x) != length(y) && return false
-    # @infiltrate
-    # why is this equal when collect(zip(x, y))[1][1] == collect(zip(x, y))[1][2]
-    # is false?
-    # return all(@show(xᵢ) == @show(yᵢ) for (xᵢ,yᵢ) in zip(x, y))
     return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
 end
 @static if VERSION ≥ v"1.5"
@@ -443,9 +435,10 @@ Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
 # `sortedsides` is an internal function that returns an iterator over the start
 # and stop time points of two TimeSpanUnion's in order from earliest to latest
-# time point. The returned value iterates over the time points and two flags
-# which indicate whether the returned time point is located in x and in y. (Start
-# points are in their set, end points are not)
+# time point. The returned value iterates over 3-tuples: each tuple as a time
+# point and two flags which indicate whether the returned time point is located
+# in x and in y, respectively. (Start points are in their set, end points are
+# not).
 
 function sortsides(x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     return SortedSides(x, y)
@@ -473,8 +466,8 @@ function Base.iterate(sides::SortedSides,
             xstate = xstart ? (xi, false) : (xi + 1, true)
             ystate = ystart ? (yi, false) : (yi + 1, true)
             return (side(x, xstart), xstart, ystart), (xstate, ystate)
-            # advance y
         else
+            # advance y
             ystate = ystart ? (yi, false) : (yi + 1, true)
             return (side(y, ystart), !xstart, ystart), ((xi, xstart), ystate)
         end
@@ -484,12 +477,15 @@ function Base.iterate(sides::SortedSides,
     end
 end
 
+#
+#     mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
+#
 # `mergesets` is the primary internal function implementing set operations (see
-# above for description of `op`). It iterates through the start and stop points
-# in x and y, in order from lowest to highest. The implementation is based on
-# the insight that we can make a decision to include or exclude a given start or
-# stop time of the timespan (based on `op`) and all future points will yield the
-# same decision, until we hit another start or stop point.
+# above for its usage). It iterates through the start and stop points in x and
+# y, in order from lowest to highest. The implementation is based on the insight
+# that we can make a decision to include or exclude a given start or stop time
+# of the timespan (based on `op`) and all future points will yield the same
+# decision, until we hit another start or stop point.
 #
 # For each start/stop point, we determine two things: 
 #   1. whether the point should be included in the merge operation or not (based
@@ -507,10 +503,6 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
     sizehint!(result, length(x) + length(y))
 
     spanstart = Nanosecond(0)
-
-    # is the given time point included or excluded from x and/or y?
-    t_in_x = false
-    t_in_y = false
 
     # does the next time point we add to `result` define a region that
     # inclues (start) or excludes (stop) future points.
@@ -629,8 +621,8 @@ end
 Random.gentype(::TimeSpan) = Nanosecond
 
 function Random.Sampler(RNG::Type{<:Random.AbstractRNG}, x::TimeSpan,
-                        ::Random.Repetition)
-    sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1))
+                        rep::Random.Repetition)
+    sampler = Random.Sampler(RNG, (start(x).value):(stop(x).value - 1), rep)
     return TimeSpanSampler(sampler)
 end
 function Base.rand(rng::Random.AbstractRNG, x::TimeSpanSampler)
