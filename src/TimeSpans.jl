@@ -385,7 +385,7 @@ function sorted_timespan_union(spans::AbstractVector)
     push!(result, spans[1])
     for span in @view(spans[2:end])
         if overlaps(result[end], span)
-            result[end] = TimeSpan(start(result[end]), stop(span))
+            result[end] = shortest_timespan_containing((result[end], span))
         else
             push!(result, span)
         end

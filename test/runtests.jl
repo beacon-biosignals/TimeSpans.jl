@@ -131,6 +131,10 @@ end
     testsets(spans[1], spans[26:end])
     testsets(spans[1:25], spans[26])
 
+    # verify that `stop` need not be ordered
+    spans = [TimeSpan(Nanosecond(0), Nanosecond(5)), TimeSpan(Nanosecond(0), Nanosecond(3))]
+    @test shortest_timespan_containing(union(spans)) == TimeSpan(Nanosecond(0), Nanosecond(5))
+
     # whitebox testing of the internal, `time_union` function
     x = reduce(union, spans[2:end], init = spans[1]) 
     @test all(x .== TimeSpans.time_union(spans))
