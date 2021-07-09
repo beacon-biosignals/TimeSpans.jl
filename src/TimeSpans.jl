@@ -357,10 +357,10 @@ calls to set operations will have to re-establish the invariants of such a copy.
 """
 struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
     data::A
-    function TimeSpanUnion(x::AbstractVector{TimeSpan}, issorted=false,
-                           nooverlap=false)
-        sorted = issorted ? x : sort(x; by=start)
-        merged = nooverlap ? sorted : sorted_timespan_union(sorted)
+    function TimeSpanUnion(x::AbstractVector{TimeSpan}; is_sorted=false,
+                           may_overlap=true)
+        sorted = is_sorted ? x : sort(x; by=start)
+        merged = may_overlap ? sorted_timespan_union(sorted) : sorted
         return new{typeof(merged)}(merged)
     end
 end
@@ -530,14 +530,16 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
         end
     end
 
-    return TimeSpanUnion(result, true, true)
+    return TimeSpanUnion(result, is_sorted=true, may_overlap=false)
 end
 
 #####
 ##### Invariant preserving operations over TimeSpanUnions 
 #####
 
-Base.copy(x::TimeSpanUnion) = TimeSpanUnion(copy(x.data), true, true)
+function Base.copy(x::TimeSpanUnion)
+    TimeSpanUnion(copy(x.data), is_sorted=true, may_overlap=false)
+end
 
 # some helper functions
 isneg(by::Period) = by < Nanosecond(0)
