@@ -369,11 +369,11 @@ Base.@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
 Base.setindex!(x::TimeSpanUnion, i...) = throw(ReadOnlyArrayError())
 Base.size(x::TimeSpanUnion) = size(x.data)
 
-# `timeunion`: internal function to convert objects to an
+# `time_union`: internal function to convert objects to an
 # `AbstractTimeSpanUnion` value
-timeunion(x) = TimeSpanUnion(x)
-timeunion(data::TimeSpan) = TimeSpanSingleton(data)
-timeunion(data::TimeSpanUnion) = data
+time_union(x) = TimeSpanUnion(x)
+time_union(data::TimeSpan) = TimeSpanSingleton(data)
+time_union(data::TimeSpanUnion) = data
 
 # `sorted_timespan_union` merges a series of sorted timespans so there is no
 # overlap between timespans
@@ -396,8 +396,8 @@ end
 # efficeint implementation of `reduce(union, timespans)`
 function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan};
                      init=TimeSpan[])
-    spans = timeunion(spans)
-    init = timeunion(init)
+    spans = time_union(spans)
+    init = time_union(init)
     if isempty(init)
         return spans
     else
@@ -411,22 +411,22 @@ end
 # membership of that point in both x and in y
 const MergableSpans = Union{TimeSpan,AbstractVector{TimeSpan}}
 function Base.intersect(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && iny, timeunion(x), timeunion(y))
+    return mergesets((inx, iny) -> inx && iny, time_union(x), time_union(y))
 end
 function Base.union(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx || iny, timeunion(x), timeunion(y))
+    return mergesets((inx, iny) -> inx || iny, time_union(x), time_union(y))
 end
 function Base.setdiff(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && !iny, timeunion(x), timeunion(y))
+    return mergesets((inx, iny) -> inx && !iny, time_union(x), time_union(y))
 end
 function Base.symdiff(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx ⊻ iny, timeunion(x), timeunion(y))
+    return mergesets((inx, iny) -> inx ⊻ iny, time_union(x), time_union(y))
 end
 function Base.issubset(x::MergableSpans, y::MergableSpans)
     return isempty(setdiff(x, y))
 end
 function Base.issetequal(x::MergableSpans, y::MergableSpans)
-    x, y = timeunion.((x, y))
+    x, y = time_union.((x, y))
     length(x) != length(y) && return false
     return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
 end
@@ -643,7 +643,7 @@ end
 Random.gentype(::AbstractVector{TimeSpan}) = Nanosecond
 function Random.Sampler(::Type{<:Random.AbstractRNG},
                         x::AbstractVector{TimeSpan}, ::Random.Repetition)
-    unioned = timeunion(x)
+    unioned = time_union(x)
     wts = weights(getproperty.(duration.(unioned), :value))
     return TimeSpanUnionSampler(x, wts)
 end

@@ -27,6 +27,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
     @test extend(t, by) === TimeSpan(start(t), max(start(t), stop(t) + Nanosecond(by)))
     @test extend(t, -by) === TimeSpan(start(t), max(start(t), stop(t) - Nanosecond(by)))
+    @test extend(t, -(duration(t) + Nanosecond(1))) === TimeSpan(start(t), max(start(t), stop(t) - Nanosecond(by)))
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 end
 
@@ -130,11 +131,11 @@ end
     testsets(spans[1], spans[26:end])
     testsets(spans[1:25], spans[26])
 
-    # whitebox testing of the internal, `timeunion` function
+    # whitebox testing of the internal, `time_union` function
     x = reduce(union, spans[2:end], init = spans[1]) 
-    @test all(x .== TimeSpans.timeunion(spans))
+    @test all(x .== TimeSpans.time_union(spans))
     @test_throws TimeSpans.ReadOnlyArrayError x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    span = TimeSpans.timeunion(spans[1])
+    span = TimeSpans.time_union(spans[1])
     @test_throws TimeSpans.ReadOnlyArrayError span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
 
     # test invariant preserving operations on unions
