@@ -133,26 +133,26 @@ end
     # whitebox testing of the internal, `timeunion` function
     x = reduce(union, spans[2:end], init = spans[1]) 
     @test all(x .== TimeSpans.timeunion(spans))
-    @test_throws ErrorException x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws TimeSpans.ReadOnlyArrayError x[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
     span = TimeSpans.timeunion(spans[1])
-    @test_throws ErrorException span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws TimeSpans.ReadOnlyArrayError span[] = TimeSpan(Nanosecond(0), Nanosecond(1))
 
     # test invariant preserving operations on unions
     x = reduce(union, spans[1:25])
-    xext = shrinkall(x, Nanosecond(1))
-    @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    @test_throws ErrorException shrinkall(x, Nanosecond(-1))
+    xext = shrink_all(x, Nanosecond(1))
+    @test_throws TimeSpans.ReadOnlyArrayError xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws TimeSpans.ArgumentError shrink_all(x, Nanosecond(-1))
 
-    xext = shrinkall(x, Nanosecond.(rand(1:5, length(x))))
-    @test_throws ErrorException xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    @test_throws ErrorException shrinkall(x, Nanosecond.(rand(.-(1:5), length(x))))
-    @test length(shrinkall(collect(x), Nanosecond.(rand(.-(1:5), length(x))))) ==
+    xext = shrink_all(x, Nanosecond.(rand(1:5, length(x))))
+    @test_throws TimeSpans.ReadOnlyArrayError xext[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws TimeSpans.ArgumentError shrink_all(x, Nanosecond.(rand(.-(1:5), length(x))))
+    @test length(shrink_all(collect(x), Nanosecond.(rand(.-(1:5), length(x))))) ==
         length(x)
 
-    xtrans = translateall(x, Nanosecond(5))
-    @test_throws ErrorException xtrans[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
-    @test_throws ErrorException translateall(x, Nanosecond.(rand(1:5, length(x))))
-    @test length(translateall(collect(x), Nanosecond.(rand(1:5, length(x))))) ==
+    xtrans = translate_all(x, Nanosecond(5))
+    @test_throws TimeSpans.ReadOnlyArrayError xtrans[1] = TimeSpan(Nanosecond(0), Nanosecond(1))
+    @test_throws TimeSpans.ArgumentError translate_all(x, Nanosecond.(rand(1:5, length(x))))
+    @test length(translate_all(collect(x), Nanosecond.(rand(1:5, length(x))))) ==
         length(x)
 end
 

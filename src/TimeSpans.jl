@@ -48,8 +48,9 @@ struct TimeSpan
     stop::Nanosecond
     function TimeSpan(start::Nanosecond, stop::Nanosecond)
         stop += Nanosecond(start == stop)
-        start < stop ||
+        if start ≥ stop
             throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
+        end
         return new(start, stop)
     end
     TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
@@ -317,10 +318,13 @@ end
 abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan} end
 
 # Time span unions are read only; define a clear error message.
-function readOnlyError()
-    return error("This is a read only value. Call `collect` on the result to get " *
-                 "an editable copy or use one of the invariant preserving methods.")
+struct ReadOnlyArrayError <: Exception
+    msg::String
 end
+ReadOnlyArrayError() = ReadOnlyArrayError("""
+This is a read only array. Call `collect` on the result to get
+an editable copy, or consider using `translate_all` or `shrink_all`.
+""")
 
 # a `union` of a single time span
 # (an internal type that simplifies implementation of `mergesets`, below)
@@ -329,28 +333,28 @@ struct TimeSpanSingleton <: AbstractTimeSpanUnion
 end
 Base.@propagate_inbounds Base.getindex(x::TimeSpanSingleton, i...) = x.data
 Base.size(::TimeSpanSingleton) = (1,)
-Base.setindex(::TimeSpanSingleton, _) = readOnlyError()
+Base.setindex!(::TimeSpanSingleton, _) = throw(ReadOnlyArrayError())
 
 """
     TimeSpanUnion <: AbstractVector{TimeSpan}
 
-All set operations (e.g. `union`, `intersect`) over a `TimeSpan` or a
-`AbstractVector{TimeSpan}` return an object of type `TimeSpanUnion`.
-`TimeSpanUnion` contains some number of time spans and maintains
-the following invariants.
+A union of multiple time spans: all set operations (e.g. `union`, `intersect`)
+over a `TimeSpan` or a `AbstractVector{TimeSpan}` return an object of this type.
+
+`TimeSpanUnion` contains some number of time spans and maintains the following
+invariants.
 
 1. Time spans do not overlap
 2. Time spans are sorted from earlier to later start times
 
-Using this type helps to ensure that sequences of multiple set operations do not
-have to repeatedly check and preserve these invariants.
+This type helps to ensure that sequences of multiple set operations do not have
+to repeatedly check and preserve these invariants.
 
 If you need to modify these sets yourself you can use one of the invariant
-preserving methods (`shrink_all!`, `translate_all!`, etc...) or you can call
-`collect` and modify the resulting copy. Future calls to set operations
-will have to re-establish the invariants of such a copy.
+preserving methods (`shrink_all!` and `translate_all!` or their non-mutating
+counterparts) or you can call `collect` and modify the resulting copy. Future
+calls to set operations will have to re-establish the invariants of such a copy.
 """
-# a `union` of multiple time spans
 struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
     data::A
     function TimeSpanUnion(x::AbstractVector{TimeSpan}, issorted=false,
@@ -362,7 +366,7 @@ struct TimeSpanUnion{A} <: AbstractTimeSpanUnion
 end
 Base.parent(x::TimeSpanUnion) = x.data
 Base.@propagate_inbounds Base.getindex(x::TimeSpanUnion, i...) = x.data[i...]
-Base.setindex(x::TimeSpanUnion, i...) = readOnlyError()
+Base.setindex!(x::TimeSpanUnion, i...) = throw(ReadOnlyArrayError())
 Base.size(x::TimeSpanUnion) = size(x.data)
 
 # `timeunion`: internal function to convert objects to an
@@ -549,10 +553,10 @@ the invariants of the time span union are maintained.
 """
 function shrink_all!(x::TimeSpanUnion, by)
     if isneg(by)
-        error("Expected a non-negative value")
+        throw(ArgumentError("Expected a non-negative value"))
     elseif ismultidim(by)
-        error("Shape of time spans and `by` could produce overlapping time " *
-              "spans. Call `collect` on the time spans first.")
+        throw(ArgumentError("Shape of time spans and `by` could produce overlapping time " *
+              "spans. Call `collect` on the time spans first."))
     else
         x.data .= extend.(x.data, .-by)
     end
@@ -589,11 +593,11 @@ end
 # internal implementation detail to make `mergesets` easier to implement).
 
 function translate_all!(::TimeSpanUnion, by)
-    return error("""The value of `by` is not a time period. It could be an aribtrary
+    return throw(ArgumentError("""The value of `by` is not a time period. It could be an aribtrary
            iterable object and the passed value is a time union. Translating each value
            in this time union by a different amount could lead to overlap. Call
            `collect` on the time union first if you want to translate each time span by
-           a different value.""")
+           a different value."""))
 end
 
 """
