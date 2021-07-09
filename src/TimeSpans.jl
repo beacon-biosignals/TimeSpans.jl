@@ -405,37 +405,6 @@ function Base.reduce(::typeof(union), spans::AbstractVector{TimeSpan};
     end
 end
 
-# set operations use a generic, higher-order function (`mergesets`) that merges
-# two AbstractTimeSpanUnion objects: the passed operator to `mergesets` should
-# indicate whether a time point should be included in the result, given the
-# membership of that point in both x and in y
-const MergableSpans = Union{TimeSpan,AbstractVector{TimeSpan}}
-function Base.intersect(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && iny, time_union(x), time_union(y))
-end
-function Base.union(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx || iny, time_union(x), time_union(y))
-end
-function Base.setdiff(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx && !iny, time_union(x), time_union(y))
-end
-function Base.symdiff(x::MergableSpans, y::MergableSpans)
-    return mergesets((inx, iny) -> inx ⊻ iny, time_union(x), time_union(y))
-end
-function Base.issubset(x::MergableSpans, y::MergableSpans)
-    return isempty(setdiff(x, y))
-end
-function Base.issetequal(x::MergableSpans, y::MergableSpans)
-    x, y = time_union.((x, y))
-    length(x) != length(y) && return false
-    return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
-end
-@static if VERSION ≥ v"1.5"
-    function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
-        return isempty(intersect(x, y))
-    end
-end
-Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
 # `sortedsides` is an internal function that returns an iterator over the start
 # and stop time points of two TimeSpanUnion's in order from earliest to latest
@@ -532,6 +501,38 @@ function mergesets(op, x::AbstractTimeSpanUnion, y::AbstractTimeSpanUnion)
 
     return TimeSpanUnion(result, is_sorted=true, may_overlap=false)
 end
+
+# set operations use a generic, higher-order function (`mergesets`) that merges
+# two AbstractTimeSpanUnion objects: the passed operator to `mergesets` should
+# indicate whether a time point should be included in the result, given the
+# membership of that point in both x and in y
+const MergableSpans = Union{TimeSpan,AbstractVector{TimeSpan}}
+function Base.intersect(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx && iny, time_union(x), time_union(y))
+end
+function Base.union(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx || iny, time_union(x), time_union(y))
+end
+function Base.setdiff(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx && !iny, time_union(x), time_union(y))
+end
+function Base.symdiff(x::MergableSpans, y::MergableSpans)
+    return mergesets((inx, iny) -> inx ⊻ iny, time_union(x), time_union(y))
+end
+function Base.issubset(x::MergableSpans, y::MergableSpans)
+    return isempty(setdiff(x, y))
+end
+function Base.issetequal(x::MergableSpans, y::MergableSpans)
+    x, y = time_union.((x, y))
+    length(x) != length(y) && return false
+    return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
+end
+@static if VERSION ≥ v"1.5"
+    function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
+        return isempty(intersect(x, y))
+    end
+end
+Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
 #####
 ##### Invariant preserving operations over TimeSpanUnions 
