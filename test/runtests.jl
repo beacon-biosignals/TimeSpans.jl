@@ -122,6 +122,10 @@ end
     testsets(spans[1], spans[4:end])
     testsets(spans[1:3], spans[4])
 
+    # verify that `stop` need not be ordered
+    spans = [TimeSpan(Nanosecond(0), Nanosecond(5)), TimeSpan(Nanosecond(0), Nanosecond(3))]
+    @test shortest_timespan_containing(union(spans)) == TimeSpan(Nanosecond(0), Nanosecond(5))
+
     starts = Nanosecond.(rand(1:100_000, 25))
     spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
     spans = [spans; translate.(spans, Nanosecond.(round.(Int, getproperty.(duration.(spans), :value) .* (2.0.*rand(length(spans)) .- 1.0))))]
@@ -130,10 +134,6 @@ end
     testsets(spans[1:25], spans[26:end])
     testsets(spans[1], spans[26:end])
     testsets(spans[1:25], spans[26])
-
-    # verify that `stop` need not be ordered
-    spans = [TimeSpan(Nanosecond(0), Nanosecond(5)), TimeSpan(Nanosecond(0), Nanosecond(3))]
-    @test shortest_timespan_containing(union(spans)) == TimeSpan(Nanosecond(0), Nanosecond(5))
 
     # whitebox testing of the internal, `time_union` function
     x = reduce(union, spans[2:end], init = spans[1]) 
