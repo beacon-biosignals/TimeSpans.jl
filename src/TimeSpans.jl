@@ -4,8 +4,8 @@ using Dates, StatsBase, Random
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time, time_from_index,
-       extend, TimeSpanUnion, shrinkall!, translateall!, shrinkall,
-       translateall
+       extend, TimeSpanUnion, shrink_all!, translate_all!, shrink_all,
+       translate_all
 
 #####
 ##### `TimeSpan`
@@ -346,7 +346,7 @@ Using this type helps to ensure that sequences of multiple set operations do not
 have to repeatedly check and preserve these invariants.
 
 If you need to modify these sets yourself you can use one of the invariant
-preserving methods (`shrinkall!`, `translateall!`, etc...) or you can call
+preserving methods (`shrink_all!`, `translate_all!`, etc...) or you can call
 `collect` and modify the resulting copy. Future calls to set operations
 will have to re-establish the invariants of such a copy.
 """
@@ -542,12 +542,12 @@ hasshape(by::Period) = false
 ismultidim(x) = Base.IteratorSize(x) isa Base.HasShape && length(size(x)) > 1
 
 """
-    `shrinkall!(x::TimeSpanUnion, by)`
+    `shrink_all!(x::TimeSpanUnion, by)`
 
 Computes x .= extend.(x, .-by), throwing an error if it cannot be guaranteed that
 the invariants of the time span union are maintained.
 """
-function shrinkall!(x::TimeSpanUnion, by)
+function shrink_all!(x::TimeSpanUnion, by)
     if isneg(by)
         error("Expected a non-negative value")
     elseif ismultidim(by)
@@ -561,26 +561,26 @@ function shrinkall!(x::TimeSpanUnion, by)
 end
 
 """
-    `shrinkall!(x::AbstractVector{TimeSpan}, by)`
+    `shrink_all!(x::AbstractVector{TimeSpan}, by)`
 
 Computes x .= extend.(x, .-by)
 """
-shrinkall!(x::AbstractVector{TimeSpan}, by) = x .= extend.(x, .-by)
+shrink_all!(x::AbstractVector{TimeSpan}, by) = x .= extend.(x, .-by)
 
 """
-    `shrinkall(x, by)`
+    `shrink_all(x, by)`
 
-Calls `shrinkall!(copy(x), by)`.
+Calls `shrink_all!(copy(x), by)`.
 """
-shrinkall(x, by) = shrinkall!(copy(x), by)
+shrink_all(x, by) = shrink_all!(copy(x), by)
 
 """
-    `translateall!(x::TimeSpanUnion, by)`
+    `translate_all!(x::TimeSpanUnion, by)`
 
 Computes x .= translate.(x, by), throwing an error if it cannot be guaranteed that
 the invariants of the time span union are maintained. 
 """
-function translateall!(x::TimeSpanUnion, by::Period)
+function translate_all!(x::TimeSpanUnion, by::Period)
     x.data .= translate.(x.data, by)
     return x
 end
@@ -588,7 +588,7 @@ end
 # never be returned by any of the set-related methods (they are purely an
 # internal implementation detail to make `mergesets` easier to implement).
 
-function translateall!(::TimeSpanUnion, by)
+function translate_all!(::TimeSpanUnion, by)
     return error("""The value of `by` is not a time period. It could be an aribtrary
            iterable object and the passed value is a time union. Translating each value
            in this time union by a different amount could lead to overlap. Call
@@ -597,18 +597,18 @@ function translateall!(::TimeSpanUnion, by)
 end
 
 """
-    `translateall!(x::AbstractVector{TimeSpan}, by)`
+    `translate_all!(x::AbstractVector{TimeSpan}, by)`
 
 Computes x .= translate.(x, by)
 """
-translateall!(x::AbstractVector{TimeSpan}, by) = x .= translate.(x, by)
+translate_all!(x::AbstractVector{TimeSpan}, by) = x .= translate.(x, by)
 
 """
-    `translateall(x, by)`
+    `translate_all(x, by)`
 
-Calls `translateall!(copy(x), by)`
+Calls `translate_all!(copy(x), by)`
 """
-translateall(x, by) = translateall!(copy(x), by)
+translate_all(x, by) = translate_all!(copy(x), by)
 
 #####
 ##### Sampling from time spans 
