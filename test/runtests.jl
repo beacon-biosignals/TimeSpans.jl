@@ -28,6 +28,11 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 end
 
+@testset "format_duration" begin
+    @test TimeSpans.format_duration(3723004005006) == "01:02:03.004005006"
+    @test TimeSpans.format_duration(-3723004005006) == "-01:02:03.004005006"
+end
+
 @testset "contains(::TimeSpan...)" begin
     @test contains(TimeSpan(10, 20), TimeSpan(10, 20))
     @test contains(TimeSpan(10, 20), TimeSpan(11, 19))

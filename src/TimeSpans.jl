@@ -62,14 +62,15 @@ end
 format_duration(t::Period) = format_duration(convert(Nanosecond, t).value)
 
 function format_duration(ns::Integer)
-    hr, m, s, ms, μs, ns = nanosecond_to_periods(ns)
+    sig = signbit(ns) ? "-" : ""
+    hr, m, s, ms, μs, ns = nanosecond_to_periods(abs(ns))
     hr = lpad(hr, 2, '0')
     m = lpad(m, 2, '0')
     s = lpad(s, 2, '0')
     ms = lpad(ms, 3, '0')
     μs = lpad(μs, 3, '0')
     ns = lpad(ns, 3, '0')
-    return string(hr, ':', m, ':', s, '.', ms, μs, ns)
+    return string(sig, hr, ':', m, ':', s, '.', ms, μs, ns)
 end
 
 function Base.show(io::IO, w::TimeSpan)
