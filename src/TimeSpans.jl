@@ -1,10 +1,25 @@
 module TimeSpans
 
 using Dates
+using Dates: CompoundPeriod
+using Intervals: Intervals, AbstractInterval, Closed, Open
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
        time_from_index
+
+# Define a new `convert` function for TimeSpan (avoids type piracy)
+# TODO: `convert(::Type{Nanosecond}, ::CompoundPeriod)` and `Nanosecond(::CompoundPeriod)`
+# should be defined
+convert(::Type{Nanosecond}, x::CompoundPeriod) = sum(Nanosecond.(x.periods))
+convert(args...) = Base.convert(args...)
+
+# Piracy
+Base.IteratorSize(::Type{<:Period}) = Base.HasShape{0}()
+Base.length(::Period) = 1
+Base.size(::Period) = ()
+Base.iterate(p::Period) = (p, nothing)
+Base.iterate(p::Period, ::Any) = nothing
 
 
 #####
@@ -23,7 +38,7 @@ The benefit of this type over e.g. `Nanosecond(start):Nanosecond(1):Nanosecond(s
 that instances of this type are guaranteed to obey `TimeSpans.start(x) < TimeSpans.stop(x)`
 by construction.
 """
-struct TimeSpan
+struct TimeSpan <: AbstractInterval{Nanosecond,Closed,Open}
     start::Nanosecond
     stop::Nanosecond
     function TimeSpan(start::Nanosecond, stop::Nanosecond)
@@ -31,8 +46,16 @@ struct TimeSpan
         start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
         return new(start, stop)
     end
-    TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
+
+function TimeSpan(start::CompoundPeriod, stop::CompoundPeriod)
+    return TimeSpan(convert(Nanosecond, start), convert(Nanosecond, stop))
+end
+
+TimeSpan(start, stop::CompoundPeriod) = TimeSpan(start, convert(Nanosecond, stop))
+TimeSpan(start::CompoundPeriod, stop) = TimeSpan(convert(Nanosecond, start), stop)
+
+TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 
 """
     TimeSpan(x)
@@ -41,10 +64,28 @@ Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
-Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
+TimeSpan(x::AbstractInterval{Nanosecond,Closed,Open}) = TimeSpan(first(x), last(x))
+
+Base.first(ts::TimeSpan) = ts.start
+Base.last(ts::TimeSpan) = ts.stop
+Intervals.span(ts::TimeSpan) = ts.stop - ts.start
+
+# Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
 Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Union{Tuple, AbstractArray}) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
+
+# TODO: Define in Intervals.jl
+Base.IteratorSize(::Type{TimeSpan}) = Base.SizeUnknown()
+
+# Base.promote_type(::Type{TimeSpan}, ::Type{<:Integer}) = TimeSpan
+# Base.promote_type(::Type{<:Integer}, ::Type{TimeSpan}) = TimeSpan
+# Base.promote_type(::Type{TimeSpan}, ::Type{<:Period}) = TimeSpan
+# Base.promote_type(::Type{<:Period}, ::Type{TimeSpan}) = TimeSpan
+
+Base.convert(::Type{TimeSpan}, x::Integer) = TimeSpan(x, x + 1)
+Base.convert(::Type{TimeSpan}, x::Period) = TimeSpan(x, x + Nanosecond(1))
+
 
 #####
 ##### pretty printing
@@ -100,7 +141,7 @@ istimespan(::Period) = true
 Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
-start(t::Period) = convert(Nanosecond, t)
+start(t::Union{Period,CompoundPeriod}) = convert(Nanosecond, t)
 
 """
     stop(span)
@@ -108,7 +149,7 @@ start(t::Period) = convert(Nanosecond, t)
 Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
-stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
+stop(t::Union{Period,CompoundPeriod}) = convert(Nanosecond, t) + Nanosecond(1)
 
 #####
 ##### generic utilities
@@ -119,27 +160,21 @@ stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
 
 Return `TimeSpan(start(span) + by, stop(span) + by)`.
 """
-function translate(span, by::Period)
-    by = convert(Nanosecond, by)
-    return TimeSpan(start(span) + by, stop(span) + by)
-end
+translate(span, by::Period) = TimeSpan(start(span) + by, stop(span) + by)
 
 """
     TimeSpans.contains(a, b)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
-contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
+contains(a, b) = issubset(b, a)
 
 """
     overlaps(a, b)
 
 Return `true` if the timespan `a` and the timespan `b` overlap, return `false` otherwise.
 """
-function overlaps(a, b)
-    starts_earlier, starts_later = ifelse(start(b) > start(a), (a, b), (b, a))
-    return stop(starts_earlier) > start(starts_later)
-end
+overlaps(a, b) = Intervals.overlaps(a, b)
 
 """
     shortest_timespan_containing(spans)
@@ -149,21 +184,21 @@ Return the shortest possible `TimeSpan` containing all timespans in `spans`.
 `spans` is assumed to be an iterable of timespans.
 """
 function shortest_timespan_containing(spans)
-    isempty(spans) && throw(ArgumentError("input iterator must be nonempty"))
-    lo, hi = Nanosecond(typemax(Int64)), Nanosecond(0)
-    for span in spans
-        lo = min(start(span), lo)
-        hi = max(stop(span), hi)
-    end
-    return TimeSpan(lo, hi)
+    return shortest_timespan_containing([convert(TimeSpan, s) for s in spans])
 end
+
+function shortest_timespan_containing(spans::AbstractArray{TimeSpan})
+    return TimeSpan.(Intervals.superset(spans))
+end
+
 
 """
     duration(span)
 
 Return `stop(span) - start(span)`.
 """
-duration(span) = stop(span) - start(span)
+duration(span) = duration(convert(TimeSpan, span))
+duration(span::TimeSpan) = Intervals.span(span)
 
 """
     TimeSpans.nanoseconds_per_sample(sample_rate)

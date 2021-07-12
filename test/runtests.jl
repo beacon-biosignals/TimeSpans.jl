@@ -26,6 +26,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
     @test translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
+    @test TimeSpan(Microsecond(1) + Nanosecond(1)) == TimeSpan(Nanosecond(1001))
 end
 
 @testset "contains(::TimeSpan...)" begin
@@ -62,6 +63,8 @@ end
     @test shortest_timespan_containing([TimeSpan(3, 7),
                                         TimeSpan(1, 10),
                                         TimeSpan(2, 5)]) == TimeSpan(1, 10)
+
+    @test_throws MethodError shortest_timespan_containing(TimeSpan(1, 2))
 end
 
 @testset "time <--> index conversion" begin
