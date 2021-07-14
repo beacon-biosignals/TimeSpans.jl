@@ -127,8 +127,8 @@ end
     @test shortest_timespan_containing(union(spans)) == TimeSpan(Nanosecond(0), Nanosecond(5))
 
     starts = Nanosecond.(rand(1:100_000, 25))
-    spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000)))
-    spans = [spans; translate.(spans, Nanosecond.(round.(Int, getproperty.(duration.(spans), :value) .* (2.0.*rand(length(spans)) .- 1.0))))]
+    spans = TimeSpan.(starts, starts .+ Nanosecond.(rand(1:10_000, 25)))
+    spans = [spans; translate.(spans, Nanosecond.(round.(Int, Data.values.(duration.(spans)) .* (2.0.*rand(length(spans)) .- 1.0))))]
     a, b = spans[1:25], spans[26:end]
     @test all(start.(spans) .∈ Ref(spans))
     testsets(spans[1:25], spans[26:end])

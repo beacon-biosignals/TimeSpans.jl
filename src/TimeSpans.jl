@@ -314,9 +314,6 @@ end
 ##### set operations
 #####
 
-# represents a union of one or more time spans
-abstract type AbstractTimeSpanUnion <: AbstractVector{TimeSpan} end
-
 # Time span unions are read only; define a clear error message.
 struct ReadOnlyArrayError <: Exception
     msg::String
@@ -325,15 +322,6 @@ ReadOnlyArrayError() = ReadOnlyArrayError("""
 This is a read only array. Call `collect` on the result to get
 an editable copy, or consider using `translate_all` or `shrink_all`.
 """)
-
-# a `union` of a single time span
-# (an internal type that simplifies implementation of `mergesets`, below)
-struct TimeSpanSingleton <: AbstractTimeSpanUnion
-    data::TimeSpan
-end
-Base.@propagate_inbounds Base.getindex(x::TimeSpanSingleton, i...) = x.data
-Base.size(::TimeSpanSingleton) = (1,)
-Base.setindex!(::TimeSpanSingleton, _) = throw(ReadOnlyArrayError())
 
 """
     TimeSpanUnion <: AbstractVector{TimeSpan}
@@ -371,9 +359,8 @@ Base.size(x::TimeSpanUnion) = size(x.data)
 
 # `time_union`: internal function to convert objects to an
 # `AbstractTimeSpanUnion` value
-time_union(x) = TimeSpanUnion(x)
-time_union(data::TimeSpan) = TimeSpanSingleton(data)
-time_union(data::TimeSpanUnion) = data
+TimeSpanUnion(x::TimeSpanUnion) = x
+TimeSpanUnion(x::TimeSpan) = TimeSpanUnion([x], is_sorted = true, may_overlap = false)
 
 # `sorted_timespan_union` merges a series of sorted timespans so there is no
 # overlap between timespans
@@ -527,10 +514,9 @@ function Base.issetequal(x::MergableSpans, y::MergableSpans)
     length(x) != length(y) && return false
     return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
 end
-@static if VERSION ≥ v"1.5"
-    function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
-        return isempty(intersect(x, y))
-    end
+function Base.isdisjoint end
+function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
+    return isempty(intersect(x, y))
 end
 Base.in(x::TimePeriod, y::AbstractVector{TimeSpan}) = any(yᵢ -> x ∈ yᵢ, y)
 
