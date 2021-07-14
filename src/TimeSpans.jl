@@ -514,7 +514,9 @@ function Base.issetequal(x::MergableSpans, y::MergableSpans)
     length(x) != length(y) && return false
     return all(xᵢ == yᵢ for (xᵢ, yᵢ) in zip(x, y))
 end
-function Base.isdisjoint end
+if !isdefined(Base, :isdisjoint)
+    @eval Base function isdisjoint end
+end
 function Base.isdisjoint(x::MergableSpans, y::MergableSpans)
     return isempty(intersect(x, y))
 end
