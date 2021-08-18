@@ -7,7 +7,7 @@ export TimeSpan, start, stop, istimespan, translate, overlaps,
        time_from_index
 
 
-const NS_IN_SEC = 1_000_000_000  # Number of nanoseconds in one second
+const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
 #####
 ##### `TimeSpan`
