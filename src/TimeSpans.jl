@@ -7,6 +7,8 @@ export TimeSpan, start, stop, istimespan, translate, overlaps,
        time_from_index
 
 
+const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
+
 #####
 ##### `TimeSpan`
 #####
@@ -171,7 +173,7 @@ duration(span) = stop(span) - start(span)
 
 Given `sample_rate` in Hz, return the number of nanoseconds corresponding to one sample.
 """
-nanoseconds_per_sample(sample_rate) = inv(sample_rate) * 1_000_000_000
+nanoseconds_per_sample(sample_rate) = inv(sample_rate) * NS_IN_SEC
 
 """
     index_from_time(sample_rate, sample_time::Period)
@@ -199,8 +201,8 @@ julia> index_from_time(100, Millisecond(1000))
 function index_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
     time_in_nanoseconds >= 0 || throw(ArgumentError("`sample_time` must be >= 0 nanoseconds"))
-    ns_per_sample = nanoseconds_per_sample(sample_rate)
-    return floor(Int, time_in_nanoseconds / ns_per_sample) + 1
+    time_in_seconds = time_in_nanoseconds / NS_IN_SEC
+    return floor(Int, time_in_seconds * sample_rate) + 1
 end
 
 """
