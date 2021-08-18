@@ -94,3 +94,19 @@ end
     @test in(TimeSpan(1,2))(Nanosecond(1))
     @test !in(TimeSpan(1,2))(Nanosecond(2))
 end
+
+@testset "index_from_time" begin
+    @testset "docstring" begin
+        @test index_from_time(1, Second(0)) == 1
+        @test index_from_time(1, Second(1)) == 2
+        @test index_from_time(100, Millisecond(999)) == 100
+        @test index_from_time(100, Millisecond(1000)) == 101
+    end
+
+    @testset "floating-point precision" begin
+        ns = Nanosecond((2 * 60 + 30) * 1e9)
+        @test index_from_time(200, ns) == 30001
+        @test index_from_time(200e0, ns) == 30001
+        @test index_from_time(200f0, ns) == 30001
+    end
+end
