@@ -28,6 +28,19 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 end
 
+@testset "parse" begin
+    # Missing inclusive decorators
+    @test_throws ArgumentError parse(TimeSpan, "")
+    @test_throws ArgumentError parse(TimeSpan, "[")
+    @test_throws ArgumentError parse(TimeSpan, ")")
+
+    # Invalid digits
+    @test_throws ArgumentError parse(TimeSpan, "[1,2,3)")
+    @test_throws ArgumentError parse(TimeSpan, "[1,b)")
+
+    @test parse(TimeSpan, "[1,2)") == TimeSpan(1, 2)
+end
+
 @testset "format_duration" begin
     @test TimeSpans.format_duration(3723004005006) == "01:02:03.004005006"
     @test TimeSpans.format_duration(-3723004005006) == "-01:02:03.004005006"

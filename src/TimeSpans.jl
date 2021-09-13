@@ -43,6 +43,17 @@ Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
+function Base.parse(::Type{TimeSpan}, str::AbstractString)
+    if !startswith(str, '[')
+        throw(ArgumentError("Expected `TimeSpan` string to start with '[', instead found: \"$str\""))
+    elseif !endswith(str, ')')
+        throw(ArgumentError("Expected `TimeSpan` string to end with ')', instead found: \"$str\""))
+    end
+    start_str, stop_str = split(str[2:(end - 1)], ','; limit=2)
+    start, stop = parse(Int, start_str), parse(Int, stop_str)
+    return TimeSpan(start, stop)
+end
+
 Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
