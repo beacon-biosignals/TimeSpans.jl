@@ -43,7 +43,12 @@ Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
 
-function Base.parse(::Type{TimeSpan}, str::AbstractString)
+"""
+    pqparse(::Type{TimeSpan}, str::AbstractString) -> TimeSpan
+
+Parse value of type `TimeSpan` from the output format used by PostresSQL.
+"""
+function pqparse(::Type{TimeSpan}, str::AbstractString)
     if !startswith(str, '[')
         throw(ArgumentError("Expected `TimeSpan` string to start with '[', instead found: \"$str\""))
     elseif !endswith(str, ')')
