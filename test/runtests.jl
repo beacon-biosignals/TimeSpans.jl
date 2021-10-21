@@ -113,3 +113,17 @@ end
         @test index_from_time(200f0, ns) == 30001
     end
 end
+
+@testset "merge_spans!" begin
+    spans = [TimeSpan(0, 10), TimeSpan(6, 12), TimeSpan(15, 20),
+             TimeSpan(21, 30), TimeSpan(29, 31)]
+    merge_spans!(overlaps, spans)
+    @test spans == [TimeSpan(0, 12), TimeSpan(15, 20), TimeSpan(21, 31)]
+    # No-op when the predicate is never `true`
+    merge_spans!(overlaps, spans)
+    @test spans == [TimeSpan(0, 12), TimeSpan(15, 20), TimeSpan(21, 31)]
+    merge_spans!((a, b) -> true, spans)
+    @test spans == [TimeSpan(0, 31)]
+    @test merge_spans!((a, b) -> rand(Bool), TimeSpan[]) == TimeSpan[]
+    @test merge_spans!((a, b) -> rand(Bool), [TimeSpan(0, 1)]) == [TimeSpan(0, 1)]
+end
