@@ -127,3 +127,10 @@ end
     @test merge_spans!((a, b) -> rand(Bool), TimeSpan[]) == TimeSpan[]
     @test merge_spans!((a, b) -> rand(Bool), [TimeSpan(0, 1)]) == [TimeSpan(0, 1)]
 end
+
+@testset "merge_spans" begin
+    @test merge_spans((a, b) -> start(b) - stop(a) < Nanosecond(5),
+                      (TimeSpan(0, 1), TimeSpan(4, 10))) == [TimeSpan(0, 10)]
+    x = [TimeSpan(0, 10), TimeSpan(100, 200), TimeSpan(400, 1000)]
+    @test merge_spans((a, b) -> true, x) == [shortest_timespan_containing(x)]
+end

@@ -4,7 +4,7 @@ using Dates
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
-       time_from_index, merge_spans!
+       time_from_index, merge_spans!, merge_spans
 
 
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
@@ -331,5 +331,14 @@ function merge_spans!(predicate, spans)
     deleteat!(spans, merged_indices)
     return spans
 end
+
+"""
+    merge_spans(predicate, spans)
+
+Return `merge_spans!(predicate, collect(spans))`.
+
+See also [`merge_spans!`](@ref).
+"""
+merge_spans(predicate, spans) = merge_spans!(predicate, collect(spans))
 
 end # module
