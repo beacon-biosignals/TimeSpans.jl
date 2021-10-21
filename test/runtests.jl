@@ -15,6 +15,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test stop(t) + Nanosecond(1) ∉ t
     @test shortest_timespan_containing([t]) == t
     @test shortest_timespan_containing((t,t,t)) == t
+    @test shortest_timespan_containing(t, t) == t
     @test duration(TimeSpan(start(t), stop(t) + Nanosecond(100))) == Nanosecond(101)
     @test duration(start(t)) == Nanosecond(1)
     @test_throws ArgumentError TimeSpan(4, 2)
@@ -67,6 +68,8 @@ end
     @test shortest_timespan_containing([TimeSpan(3, 7),
                                         TimeSpan(1, 10),
                                         TimeSpan(2, 5)]) == TimeSpan(1, 10)
+    @test shortest_timespan_containing(TimeSpan(1, 10),
+                                       TimeSpan(4, 20)) == TimeSpan(1, 20)
 end
 
 @testset "time <--> index conversion" begin

@@ -162,6 +162,13 @@ function shortest_timespan_containing(spans)
 end
 
 """
+    shortest_timespan_containing(a, b)
+
+Return the shortest possible `TimeSpan` containing the timespans `a` and `b`.
+"""
+shortest_timespan_containing(a, b) = TimeSpan(min(start(a), start(b)), max(stop(a), stop(b)))
+
+"""
     duration(span)
 
 Return `stop(span) - start(span)`.
