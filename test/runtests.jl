@@ -15,6 +15,7 @@ using TimeSpans: contains, nanoseconds_per_sample
     @test stop(t) + Nanosecond(1) ∉ t
     @test shortest_timespan_containing([t]) == t
     @test shortest_timespan_containing((t,t,t)) == t
+    @test shortest_timespan_containing(t, t) == t
     @test duration(TimeSpan(start(t), stop(t) + Nanosecond(100))) == Nanosecond(101)
     @test duration(start(t)) == Nanosecond(1)
     @test_throws ArgumentError TimeSpan(4, 2)
@@ -67,6 +68,8 @@ end
     @test shortest_timespan_containing([TimeSpan(3, 7),
                                         TimeSpan(1, 10),
                                         TimeSpan(2, 5)]) == TimeSpan(1, 10)
+    @test shortest_timespan_containing(TimeSpan(1, 10),
+                                       TimeSpan(4, 20)) == TimeSpan(1, 20)
 end
 
 @testset "time <--> index conversion" begin
@@ -109,4 +112,25 @@ end
         @test index_from_time(200e0, ns) == 30001
         @test index_from_time(200f0, ns) == 30001
     end
+end
+
+@testset "merge_spans!" begin
+    spans = [TimeSpan(0, 10), TimeSpan(6, 12), TimeSpan(15, 20),
+             TimeSpan(21, 30), TimeSpan(29, 31)]
+    merge_spans!(overlaps, spans)
+    @test spans == [TimeSpan(0, 12), TimeSpan(15, 20), TimeSpan(21, 31)]
+    # No-op when the predicate is never `true`
+    merge_spans!(overlaps, spans)
+    @test spans == [TimeSpan(0, 12), TimeSpan(15, 20), TimeSpan(21, 31)]
+    merge_spans!((a, b) -> true, spans)
+    @test spans == [TimeSpan(0, 31)]
+    @test merge_spans!((a, b) -> rand(Bool), TimeSpan[]) == TimeSpan[]
+    @test merge_spans!((a, b) -> rand(Bool), [TimeSpan(0, 1)]) == [TimeSpan(0, 1)]
+end
+
+@testset "merge_spans" begin
+    @test merge_spans((a, b) -> start(b) - stop(a) < Nanosecond(5),
+                      (TimeSpan(0, 1), TimeSpan(4, 10))) == [TimeSpan(0, 10)]
+    x = [TimeSpan(0, 10), TimeSpan(100, 200), TimeSpan(400, 1000)]
+    @test merge_spans((a, b) -> true, x) == [shortest_timespan_containing(x)]
 end
