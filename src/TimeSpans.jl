@@ -46,7 +46,10 @@ TimeSpan(x) = TimeSpan(start(x), stop(x))
 Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
-Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Union{Tuple, AbstractArray}) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
+# written as two methods and not with obj::Union{AbstractArray,Tuple} to avoid
+# a method ambiguity in Julia 1.7
+Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::AbstractArray) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
+Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Tuple) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
 
 #####
 ##### pretty printing
