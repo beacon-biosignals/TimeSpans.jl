@@ -210,7 +210,6 @@ julia> index_from_time(100, Millisecond(1000))
 """
 index_from_time(sample_rate, sample_time::Period) = first(index_and_is_rounded_from_time(sample_rate, sample_time))
 
-
 # Helper to get the index and whether or not it has been rounded
 function index_and_is_rounded_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
