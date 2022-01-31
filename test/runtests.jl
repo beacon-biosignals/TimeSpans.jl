@@ -81,12 +81,6 @@ end
     @test index_from_time(100, Nanosecond(0)) == 1
     @test index_from_time(100, TimeSpan(Second(3), Second(6))) == 301:600
     @test index_from_time(100, TimeSpan(Second(1))) == 101:101
-
-    # https://github.com/beacon-biosignals/TimeSpans.jl/issues/28
-    @test index_from_time(1, Millisecond(1500)) == 2
-    @test index_from_time(1, Millisecond(2500)) == 3
-    @test index_from_time(1, TimeSpan(Millisecond(1500), Millisecond(2500))) == 2:3
-
     # test non-integer sample rates
     rate = 100.66
     ns_per_sample = nanoseconds_per_sample(rate)

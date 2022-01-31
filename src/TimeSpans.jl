@@ -208,15 +208,11 @@ julia> index_from_time(100, Millisecond(1000))
 101
 ```
 """
-index_from_time(sample_rate, sample_time::Period) = first(index_and_is_rounded_from_time(sample_rate, sample_time))
-
-# Helper to get the index and whether or not it has been rounded
-function index_and_is_rounded_from_time(sample_rate, sample_time::Period)
+function index_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
     time_in_nanoseconds >= 0 || throw(ArgumentError("`sample_time` must be >= 0 nanoseconds"))
     time_in_seconds = time_in_nanoseconds / NS_IN_SEC
-    index = time_in_seconds * sample_rate + 1
-    return floor(Int, index), !isinteger(index)
+    return floor(Int, time_in_seconds * sample_rate) + 1
 end
 
 """
@@ -237,12 +233,8 @@ julia> index_from_time(100, TimeSpan(Second(3), Second(6)))
 """
 function index_from_time(sample_rate, span)
     i = index_from_time(sample_rate, start(span))
-    j, is_rounded = index_and_is_rounded_from_time(sample_rate, stop(span))
-    # if `j` has been rounded down, then we are already excluding the right endpoint
-    # by means of that rounding. Hence, we don't need to decrement here.
-    if i != j && !is_rounded
-        j -= 1
-    end
+    j = index_from_time(sample_rate, stop(span))
+    j = i == j ? j : (j - 1)
     return i:j
 end
 
