@@ -114,7 +114,7 @@ end
     end
 
     for rate in (101//2, 1001//10, 200, 256, 1, 10)
-        for sample_time in (Nanosecond(12345), Minute(5), Nanosecond(Minute(5)) + Nanosecond(1), Nanosecond(1), Nanosecond(10^6))
+        for sample_time in (Nanosecond(12345), Minute(5), Nanosecond(Minute(5)) + Nanosecond(1), Nanosecond(1), Nanosecond(10^6), Nanosecond(6970297031))
             # compute with a very simple algorithm
             index = naive_index_from_time(rate, sample_time)
             # Check against our `TimeSpans.index_from_time`:
