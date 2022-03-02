@@ -2,6 +2,23 @@ using Test, TimeSpans, Dates
 
 using TimeSpans: contains, nanoseconds_per_sample
 
+function naive_index_from_time(sample_rate, sample_time)
+    # This stepping computation is prone to roundoff error, so we'll work in high precision
+    sample_time_in_seconds = big(Dates.value(convert(Nanosecond, sample_time))) // big(TimeSpans.NS_IN_SEC)
+    # At time 0, we are at index 1
+    t = Rational{BigInt}(0//1)
+    index = 1
+    while true
+        # Now step forward in time; one index, and time 1/sample_rate
+        t += 1 // sample_rate
+        index += 1
+        if t > sample_time_in_seconds
+            # we just passed it, so prevoius index is the last one before the time of interest
+            return index - 1
+        end
+    end
+end
+
 @testset "basic TimeSpan code paths" begin
     t = TimeSpan(Nanosecond(rand(UInt32)))
     @test t == TimeSpan(t)
@@ -95,6 +112,13 @@ end
         @test index_from_time(rate, t) == i
         @test time_from_index(rate, i) == t
     end
+
+    for rate in (101//2, 1001//10, 200, 256, 1, 10)
+        for sample_time in (Nanosecond(12345), Minute(5), Nanosecond(Minute(5)) + Nanosecond(1), Nanosecond(1), Nanosecond(10^6))
+            @test naive_index_from_time(rate, sample_time) == TimeSpans.index_from_time(rate, sample_time)
+        end
+    end
+
 end
 
 @testset "`in` and `findall`" begin
