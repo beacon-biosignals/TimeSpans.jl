@@ -3,6 +3,23 @@ using Test, TimeSpans, Dates
 using TimeSpans: contains, nanoseconds_per_sample
 using Statistics
 
+function naive_index_from_time(sample_rate, sample_time)
+    # This stepping computation is prone to roundoff error, so we'll work in high precision
+    sample_time_in_seconds = big(Dates.value(Nanosecond(sample_time))) // big(TimeSpans.NS_IN_SEC)
+    # At time 0, we are at index 1
+    t = Rational{BigInt}(0//1)
+    index = 1
+    while true
+        # Now step forward in time; one index, and time 1/sample_rate
+        t += 1 // sample_rate
+        index += 1
+        if t > sample_time_in_seconds
+            # we just passed it, so previous index is the last one before the time of interest
+            return index - 1
+        end
+    end
+end
+
 @testset "basic TimeSpan code paths" begin
     t = TimeSpan(Nanosecond(rand(UInt32)))
     @test t == TimeSpan(t)
@@ -82,6 +99,12 @@ end
     @test index_from_time(100, Nanosecond(0)) == 1
     @test index_from_time(100, TimeSpan(Second(3), Second(6))) == 301:600
     @test index_from_time(100, TimeSpan(Second(1))) == 101:101
+
+    # https://github.com/beacon-biosignals/TimeSpans.jl/issues/28
+    @test index_from_time(1, Millisecond(1500)) == 2
+    @test index_from_time(1, Millisecond(2500)) == 3
+    @test index_from_time(1, TimeSpan(Millisecond(1500), Millisecond(2500))) == 2:3
+
     # test non-integer sample rates
     rate = 100.66
     ns_per_sample = nanoseconds_per_sample(rate)
@@ -89,6 +112,18 @@ end
         t = Nanosecond(ceil(Int, (i - 1) * ns_per_sample))
         @test index_from_time(rate, t) == i
         @test time_from_index(rate, i) == t
+    end
+
+    for rate in (101//2, 1001//10, 200, 256, 1, 10)
+        for sample_time in (Nanosecond(12345), Minute(5), Nanosecond(Minute(5)) + Nanosecond(1),
+                            Nanosecond(1), Nanosecond(10^6), Nanosecond(6970297031))
+            # compute with a very simple algorithm
+            index = naive_index_from_time(rate, sample_time)
+            # Check against our `TimeSpans.index_from_time`:
+            @test index == index_from_time(rate, sample_time)
+            # Works even if `rate` is in Float64 precision:
+            @test index == index_from_time(Float64(rate), sample_time)
+        end
     end
 end
 
