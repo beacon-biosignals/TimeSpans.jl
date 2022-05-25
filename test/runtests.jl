@@ -1,6 +1,7 @@
 using Test, TimeSpans, Dates
 
 using TimeSpans: contains, nanoseconds_per_sample
+using Statistics
 
 function naive_index_from_time(sample_rate, sample_time)
     # This stepping computation is prone to roundoff error, so we'll work in high precision
@@ -168,4 +169,14 @@ end
                       (TimeSpan(0, 1), TimeSpan(4, 10))) == [TimeSpan(0, 10)]
     x = [TimeSpan(0, 10), TimeSpan(100, 200), TimeSpan(400, 1000)]
     @test merge_spans((a, b) -> true, x) == [shortest_timespan_containing(x)]
+end
+
+@testset "Statistics.middle" begin
+    @test middle(TimeSpan(Nanosecond(0), Nanosecond(2))) == Nanosecond(1)
+    @test middle(TimeSpan(Nanosecond(-1), Nanosecond(1))) == Nanosecond(0)
+    # rounding
+    @test middle(TimeSpan(Nanosecond(0), Nanosecond(1))) == Nanosecond(0)
+    @test middle(TimeSpan(Nanosecond(0), Nanosecond(1)), RoundUp) == Nanosecond(1)
+    @test middle(TimeSpan(Nanosecond(-1), Nanosecond(0))) == Nanosecond(0)
+    @test middle(TimeSpan(Nanosecond(-1), Nanosecond(0)), RoundDown) == Nanosecond(-1)
 end

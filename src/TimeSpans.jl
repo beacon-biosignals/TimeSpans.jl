@@ -1,6 +1,7 @@
 module TimeSpans
 
 using Dates
+using Statistics
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
@@ -351,5 +352,12 @@ Return `merge_spans!(predicate, collect(spans))`.
 See also [`merge_spans!`](@ref).
 """
 merge_spans(predicate, spans) = merge_spans!(predicate, collect(spans))
+
+"""
+    Statistics.middle(t::TimeSpan, r::RoundingMode=RoundToZero)
+
+Return the midpoint of a TimeSpan in `Nanosecond`s.
+"""
+Statistics.middle(t::TimeSpan, r::RoundingMode=RoundToZero) = div(start(t) + stop(t), 2, r)
 
 end # module
