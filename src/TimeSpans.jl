@@ -364,9 +364,9 @@ Statistics.middle(t::TimeSpan, r::RoundingMode=RoundToZero) = div(start(t) + sto
 """
     invert_spans(spans, parent_span)
 
-Return a vector of TimeSpans representing the gaps between
-a vector of TimeSpans `spans` that fall within a TimeSpan
-`parent_span`
+Return a vector of TimeSpans representing the gaps between a vector
+of TimeSpans `spans` that are contained within a TimeSpan
+`parent_span`.
 """
 function invert_spans(spans::AbstractVector{TimeSpan}, parent_span::TimeSpan)
     spans = filter(x -> contains(parent_span, x), spans)
