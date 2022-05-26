@@ -368,7 +368,7 @@ Return a vector of TimeSpans representing the gaps between
 a vector of TimeSpans `spans` that fall within a TimeSpan
 `parent_span`
 """
-function invert_spans(spans, parent_span)
+function invert_spans(spans::AbstractVector{TimeSpan}, parent_span::TimeSpan)
     spans = filter(x -> contains(parent_span, x), spans)
     spans = merge_spans((a, b) -> start(b) <= stop(a), spans)
     gaps = TimeSpan[]
@@ -377,7 +377,7 @@ function invert_spans(spans, parent_span)
         push!(gaps, TimeSpan(start(parent_span), start(previous_span)))
     end
     for span in drop(spans, 1)
-        if start(span) > stop(previous_span) 
+        if start(span) > stop(previous_span)
             push!(gaps, TimeSpan(stop(previous_span), start(span)))
         end
         previous_span = span

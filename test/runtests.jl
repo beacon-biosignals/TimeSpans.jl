@@ -192,7 +192,7 @@ end
     i_spans = invert_spans(spans, parent_span)
     @test length(i_spans) == 6
     @test all(duration.(i_spans) .== Second(8))
-    
+
     # non-overlapping spans that do not extend to limits of parent_span
     spans = [TimeSpan(Second(x + 1), Second(x + 2)) for x in 0:10:59]
     i_spans = invert_spans(spans, parent_span)
