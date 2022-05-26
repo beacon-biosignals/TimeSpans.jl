@@ -369,6 +369,7 @@ a vector of TimeSpans `spans` that fall within a TimeSpan
 `parent_span`
 """
 function invert_spans(spans, parent_span)
+    spans = filter(x -> contains(parent_span, x), spans)
     spans = merge_spans((a, b) -> start(b) <= stop(a), spans)
     gaps = TimeSpan[]
     previous_span = first(spans)

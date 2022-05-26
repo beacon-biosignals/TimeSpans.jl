@@ -180,3 +180,44 @@ end
     @test middle(TimeSpan(Nanosecond(-1), Nanosecond(0))) == Nanosecond(0)
     @test middle(TimeSpan(Nanosecond(-1), Nanosecond(0)), RoundDown) == Nanosecond(-1)
 end
+
+@testset "invert_spans" begin
+    parent_span = TimeSpan(Second(0), Second(60))
+    # non-overlapping spans that extend to limits of parent_span
+    spans = [TimeSpan(Second(x), Second(x + 1)) for x in 0:10:59]
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 6
+    @test all(duration.(i_spans) .== Second(9))
+    spans = [TimeSpan(Second(x + 8), Second(x + 10)) for x in 0:10:50]
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 6
+    @test all(duration.(i_spans) .== Second(8))
+    
+    # non-overlapping spans that do not extend to limits of parent_span
+    spans = [TimeSpan(Second(x + 1), Second(x + 2)) for x in 0:10:59]
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 7
+    @test i_spans[1] == TimeSpan(Second(0), Second(1))
+    @test all(duration.(i_spans[2:6]) .== Second(9))
+    @test i_spans[end] == TimeSpan(Second(52), stop(parent_span))
+
+    # some spans lie outside of parent_span
+    i_spans = invert_spans(spans, TimeSpan(Second(0), Second(30)))
+    @test length(i_spans) == 4
+    @test maximum(map(x -> x.stop, i_spans)) <= Second(30)
+
+    # adjacent but not overlapping spans, unsorted
+    spans = vcat([TimeSpan(Second(x), Second(x + 1)) for x in 0:10:59],
+                 [TimeSpan(Second(x + 1), Second(x + 3)) for x in 0:10:59])
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 6
+    @test all(duration.(i_spans) .== Second(7))
+
+    # overlapping, unsorted
+    spans = vcat([TimeSpan(Second(x), Second(x + 1)) for x in 0:10:59],
+                 [TimeSpan(Millisecond(x * 1000) + Millisecond(500), Second(x + 2))
+                  for x in 0:10:59])
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 6
+    @test all(duration.(i_spans) .== Second(8))
+end
