@@ -364,13 +364,13 @@ Statistics.middle(t::TimeSpan, r::RoundingMode=RoundToZero) = div(start(t) + sto
 """
     invert_spans(spans, parent_span)
 
-Return a vector of TimeSpans representing the gaps between a vector
-of TimeSpans `spans` that are contained within a TimeSpan
-`parent_span`.
+Return a vector of `TimeSpan`s representing the gaps between the spans in the
+iterable `spans` that are contained within `parent_span`.
 """
-function invert_spans(spans::AbstractVector{TimeSpan}, parent_span::TimeSpan)
-    spans = filter(x -> contains(parent_span, x), spans)
-    spans = merge_spans((a, b) -> start(b) <= stop(a), spans)
+function invert_spans(spans, parent_span)
+    spans = collect(spans)
+    filter!(x -> contains(parent_span, x), spans)
+    merge_spans!((a, b) -> start(b) <= stop(a), spans)
     gaps = TimeSpan[]
     previous_span = first(spans)
     if start(previous_span) > start(parent_span)
