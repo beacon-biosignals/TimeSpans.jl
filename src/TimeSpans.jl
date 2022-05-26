@@ -1,11 +1,12 @@
 module TimeSpans
 
+using Base.Iterators
 using Dates
 using Statistics
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
-       time_from_index, merge_spans!, merge_spans
+       time_from_index, merge_spans!, merge_spans, invert_spans
 
 
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
@@ -351,5 +352,32 @@ merge_spans(predicate, spans) = merge_spans!(predicate, collect(spans))
 Return the midpoint of a TimeSpan in `Nanosecond`s.
 """
 Statistics.middle(t::TimeSpan, r::RoundingMode=RoundToZero) = div(start(t) + stop(t), 2, r)
+
+"""
+    invert_spans(spans, parent_span)
+
+Return a vector of `TimeSpan`s representing the gaps between the spans in the
+iterable `spans` that are contained within `parent_span`.
+"""
+function invert_spans(spans, parent_span)
+    spans = collect(spans)
+    filter!(x -> contains(parent_span, x), spans)
+    merge_spans!((a, b) -> start(b) <= stop(a), spans)
+    gaps = TimeSpan[]
+    previous_span = first(spans)
+    if start(previous_span) > start(parent_span)
+        push!(gaps, TimeSpan(start(parent_span), start(previous_span)))
+    end
+    for span in drop(spans, 1)
+        if start(span) > stop(previous_span)
+            push!(gaps, TimeSpan(stop(previous_span), start(span)))
+        end
+        previous_span = span
+    end
+    if stop(parent_span) > stop(previous_span)
+        push!(gaps, TimeSpan(stop(previous_span), stop(parent_span)))
+    end
+    return gaps
+end
 
 end # module
