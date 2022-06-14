@@ -133,11 +133,11 @@ function translate(span, by::Period)
 end
 
 """
-    TimeSpans.contains(a, b)
+    Base.contains(a::TimeSpan, b::TimeSpan)
 
 Return `true` if the timespan `b` lies entirely within the timespan `a`, return `false` otherwise.
 """
-contains(a, b) = start(a) <= start(b) && stop(a) >= stop(b)
+Base.contains(a::TimeSpan, b::TimeSpan) = start(a) <= start(b) && stop(a) >= stop(b)
 
 """
     overlaps(a, b)
