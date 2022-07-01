@@ -3,6 +3,7 @@ module TimeSpans
 using Base.Iterators
 using Dates
 using Statistics
+using Arrow
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
@@ -38,13 +39,16 @@ struct TimeSpan
     TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
 
+# you can treat named as time spans for many operations
+const NamedTupleTimeSpan = NamedTuple{(:start, :stop),Tuple{Nanosecond,Nanosecond}}
+Base.convert(::Type{<:NamedTupleTimeSpan}, x::TimeSpan) = (;start=start(x), stop=stop(x))
+
 """
     TimeSpan(x)
 
 Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
-
 Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
@@ -101,6 +105,7 @@ Types that overload `TimeSpans.start`/`TimeSpans.stop` should also overload `ist
 istimespan(::Any) = false
 istimespan(::TimeSpan) = true
 istimespan(::Period) = true
+istimespan(::NamedTupleTimeSpan) = true
 
 """
     start(span)
@@ -109,6 +114,7 @@ Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
+start(x::NamedTupleTimeSpan) = x.start
 
 """
     stop(span)
@@ -117,6 +123,7 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
+stop(x::NamedTupleTimeSpan) = x.stop
 
 #####
 ##### generic utilities
@@ -387,5 +394,12 @@ function invert_spans(spans, parent_span)
     end
     return gaps
 end
+
+# Support arrow serialization of timespans
+
+const TIME_SPAN_ARROW_NAME = Symbol("JuliaLang.TimeSpan")
+
+Arrow.ArrowTypes.arrowname(::Type{TimeSpan}) = TIME_SPAN_ARROW_NAME
+ArrowTypes.JuliaType(::Val{TIME_SPAN_ARROW_NAME}) = TimeSpan
 
 end # module

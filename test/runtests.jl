@@ -1,4 +1,4 @@
-using Test, TimeSpans, Dates
+using Test, TimeSpans, Dates, Arrow, Tables
 
 using TimeSpans: contains, nanoseconds_per_sample
 using Statistics
@@ -220,4 +220,38 @@ end
     i_spans = invert_spans(spans, parent_span)
     @test length(i_spans) == 6
     @test all(duration.(i_spans) .== Second(8))
+end
+
+ntspan(a, b) = (;start=Nanosecond(a), stop=Nanosecond(b))
+@testset "support named tuples" begin
+    t = (;start=Nanosecond(1), stop=Nanosecond(2))
+    @test index_from_time(100, (;start=Nanosecond(Second(3)), stop=Nanosecond(Second(6)))) == 301:600
+    @test istimespan(t)
+    @test start(t) == Nanosecond(1)
+    @test stop(t) == Nanosecond(2)
+    @test contains(t, t)
+    @test overlaps(t, t)
+    @test shortest_timespan_containing([t]) == TimeSpan(t)
+    @test duration(t) == Nanosecond(1)
+    by = Second(rand(1:10))
+    @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
+    spans = [ntspan(0, 10), ntspan(6, 12), ntspan(15, 20),
+             ntspan(21, 30), ntspan(29, 31)]
+    merge_spans!(overlaps, spans)
+    @test spans == [ntspan(0, 12), ntspan(15, 20), ntspan(21, 31)]
+
+    spans = [ntspan(Second(x), Second(x + 1)) for x in 0:10:59]
+    parent_span = ntspan(Second(0), Second(60))
+    i_spans = invert_spans(spans, parent_span)
+    @test length(i_spans) == 6
+end
+
+@testset "arrow serialization" begin
+    mktempdir() do dir
+        cols = (;span=TimeSpan(1, 2))
+        Arrow.write(joinpath(dir, "span.arrow"), [cols])
+        spancol = first(Tables.columns(Arrow.Table(joinpath(dir, "span.arrow"))))
+        @test spancol isa AbstractVector{<:TimeSpan}
+        @test spancol == [cols.span]
+    end
 end
