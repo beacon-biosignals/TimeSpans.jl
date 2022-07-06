@@ -9,7 +9,6 @@ export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
        time_from_index, merge_spans!, merge_spans, invert_spans
 
-
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
 #####
