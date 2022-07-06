@@ -247,11 +247,9 @@ ntspan(a, b) = (;start=Nanosecond(a), stop=Nanosecond(b))
 end
 
 @testset "arrow serialization" begin
-    mktempdir() do dir
-        cols = (;span=TimeSpan(1, 2))
-        Arrow.write(joinpath(dir, "span.arrow"), [cols])
-        spancol = first(Tables.columns(Arrow.Table(joinpath(dir, "span.arrow"))))
-        @test spancol isa AbstractVector{<:TimeSpan}
-        @test spancol == [cols.span]
-    end
+    cols = (;span=TimeSpan(1, 2))
+    io = Arrow.tobuffer([cols])
+    spancol = first(Tables.columns(Arrow.Table(io)))
+    @test spancol isa AbstractVector{<:TimeSpan}
+    @test spancol == [cols.span]
 end
