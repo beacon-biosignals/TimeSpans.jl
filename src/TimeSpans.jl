@@ -3,7 +3,7 @@ module TimeSpans
 using Base.Iterators
 using Dates
 using Statistics
-using Arrow
+using ArrowTypes
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
@@ -41,7 +41,6 @@ end
 
 # you can treat named as time spans for many operations
 const NamedTupleTimeSpan = NamedTuple{(:start, :stop),Tuple{Nanosecond,Nanosecond}}
-Base.convert(::Type{<:NamedTupleTimeSpan}, x::TimeSpan) = (;start=start(x), stop=stop(x))
 
 """
     TimeSpan(x)
@@ -399,7 +398,7 @@ end
 
 const TIME_SPAN_ARROW_NAME = Symbol("JuliaLang.TimeSpan")
 
-Arrow.ArrowTypes.arrowname(::Type{TimeSpan}) = TIME_SPAN_ARROW_NAME
+ArrowTypes.arrowname(::Type{TimeSpan}) = TIME_SPAN_ARROW_NAME
 ArrowTypes.JuliaType(::Val{TIME_SPAN_ARROW_NAME}) = TimeSpan
 
 end # module
