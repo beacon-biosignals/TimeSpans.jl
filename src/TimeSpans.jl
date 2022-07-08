@@ -47,6 +47,7 @@ const NamedTupleTimeSpan = NamedTuple{(:start, :stop),Tuple{Nanosecond,Nanosecon
 Return `TimeSpan(start(x), stop(x))`.
 """
 TimeSpan(x) = TimeSpan(start(x), stop(x))
+
 Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 
 # work around <https://github.com/JuliaLang/julia/issues/40311>:
