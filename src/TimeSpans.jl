@@ -3,11 +3,11 @@ module TimeSpans
 using Base.Iterators
 using Dates
 using Statistics
+using ArrowTypes
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
        time_from_index, merge_spans!, merge_spans, invert_spans
-
 
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
@@ -102,6 +102,11 @@ istimespan(::Any) = false
 istimespan(::TimeSpan) = true
 istimespan(::Period) = true
 
+function istimespan(::T) where {T<:NamedTuple}
+    return hasfield(T, :start) && fieldtype(T, :start) <: Period &&
+           hasfield(T, :stop) && fieldtype(T, :stop) <: Period
+end
+
 """
     start(span)
 
@@ -110,6 +115,11 @@ Return the inclusive lower bound of `span` as a `Nanosecond` value.
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
 
+function start(x::NamedTuple)
+    istimespan(x) || throw(ArgumentError("input is not a valid timespan"))
+    return Nanosecond(x.start)
+end
+
 """
     stop(span)
 
@@ -117,6 +127,11 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
+
+function stop(x::NamedTuple) 
+    istimespan(x) || throw(ArgumentError("input is not a valid timespan"))
+    return Nanosecond(x.stop)
+end
 
 #####
 ##### generic utilities
@@ -387,5 +402,12 @@ function invert_spans(spans, parent_span)
     end
     return gaps
 end
+
+# Support arrow serialization of timespans
+
+const TIME_SPAN_ARROW_NAME = Symbol("JuliaLang.TimeSpan")
+
+ArrowTypes.arrowname(::Type{TimeSpan}) = TIME_SPAN_ARROW_NAME
+ArrowTypes.JuliaType(::Val{TIME_SPAN_ARROW_NAME}) = TimeSpan
 
 end # module
