@@ -101,7 +101,11 @@ Types that overload `TimeSpans.start`/`TimeSpans.stop` should also overload `ist
 istimespan(::Any) = false
 istimespan(::TimeSpan) = true
 istimespan(::Period) = true
-istimespan(::T) where T <: NamedTuple = hasfield(T, :start) && hasfield(T, :stop)
+
+function istimespan(::T) where {T<:NamedTuple}
+    return hasfield(T, :start) && fieldtype(T, :start) <: Period &&
+           hasfield(T, :stop) && fieldtype(T, :stop) <: Period
+end
 
 """
     start(span)
@@ -110,9 +114,10 @@ Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
+
 function start(x::NamedTuple)
-    x.start isa Period || throw(ArgumentError("The field `start` must be a `Period` type"))
-    Nanosecond(x.start)
+    istimespan(x) || throw(ArgumentError("input is not a valid timespan"))
+    return Nanosecond(x.start)
 end
 
 """
@@ -122,9 +127,10 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
+
 function stop(x::NamedTuple) 
-    x.stop isa Period || throw(ArgumentError("The field `stop` must be a `Period` type"))
-    Nanosecond(x.stop)
+    istimespan(x) || throw(ArgumentError("input is not a valid timespan"))
+    return Nanosecond(x.stop)
 end
 
 #####
