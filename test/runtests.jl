@@ -224,9 +224,11 @@ end
 
 ntspan(a, b) = (; start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
 @testset "support named tuples" begin
-    @test index_from_time(100, (; start=Second(3), stop=Second(6))) == 301:600
-    @test_throws ArgumentError stop((; stop=0))
-    @test_throws ArgumentError start((; start=0))
+    @test index_from_time(100, (;start=Second(3), stop=Second(6))) == 301:600
+    @test_throws ArgumentError stop((;stop = 0))
+    @test_throws ArgumentError start((;start = 0))
+    @test !istimespan((;stop=0, start=1))
+    @test !istimespan((;stop=Nanosecond(0)))
 
     for t in [(; start=Nanosecond(1), stop=Nanosecond(2)),
               (; stop=Second(1), start=Second(0))]
