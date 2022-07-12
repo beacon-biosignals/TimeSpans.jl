@@ -38,9 +38,6 @@ struct TimeSpan
     TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
 
-# you can treat named as time spans for many operations
-const NamedTupleTimeSpan = NamedTuple{(:start, :stop),Tuple{Nanosecond,Nanosecond}}
-
 """
     TimeSpan(x)
 
@@ -104,7 +101,7 @@ Types that overload `TimeSpans.start`/`TimeSpans.stop` should also overload `ist
 istimespan(::Any) = false
 istimespan(::TimeSpan) = true
 istimespan(::Period) = true
-istimespan(::NamedTupleTimeSpan) = true
+istimespan(::T) where T <: NamedTuple = hasfield(T, :start) && hasfield(T, :stop)
 
 """
     start(span)
@@ -113,7 +110,7 @@ Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
-start(x::NamedTupleTimeSpan) = x.start
+start(x::NamedTuple) = Nanosecond(x.start)
 
 """
     stop(span)
@@ -122,7 +119,7 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
-stop(x::NamedTupleTimeSpan) = x.stop
+stop(x::NamedTuple) = Nanosecond(x.stop)
 
 #####
 ##### generic utilities

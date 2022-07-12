@@ -224,21 +224,24 @@ end
 
 ntspan(a, b) = (;start=Nanosecond(a), stop=Nanosecond(b))
 @testset "support named tuples" begin
-    t = (;start=Nanosecond(1), stop=Nanosecond(2))
-    @test index_from_time(100, (;start=Nanosecond(Second(3)), stop=Nanosecond(Second(6)))) == 301:600
-    @test istimespan(t)
-    @test start(t) == Nanosecond(1)
-    @test stop(t) == Nanosecond(2)
-    @test contains(t, t)
-    @test overlaps(t, t)
-    @test shortest_timespan_containing([t]) == TimeSpan(t)
-    @test duration(t) == Nanosecond(1)
-    by = Second(rand(1:10))
-    @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
+    @test index_from_time(100, (;start=Second(3), stop=Second(6))) == 301:600
+
+    for t in [(;start=Nanosecond(1), stop=Nanosecond(2)), (;stop=Second(1), start=Second(0))]
+        @test istimespan(t)
+        @test start(t) == Nanosecond(t.start)
+        @test stop(t) == Nanosecond(t.stop)
+        @test contains(t, t)
+        @test overlaps(t, t)
+        @test shortest_timespan_containing([t]) == TimeSpan(t)
+        @test duration(t) == Nanosecond(t.stop - t.start)
+        by = Second(rand(1:10))
+        @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
+    end
+
     spans = [ntspan(0, 10), ntspan(6, 12), ntspan(15, 20),
-             ntspan(21, 30), ntspan(29, 31)]
+    ntspan(21, 30), ntspan(29, 31)]
     # this could be fixed by defining
-    # Base.convert(::Type{<:NamedTupleTimeSpan}, x::TimeSpan) = (;start=start(x), stop=stop(x))
+    # Base.convert(::Type{<:NamedTuple}, x::TimeSpan) = (;start=start(x), stop=stop(x))
     @test_broken merge_spans!(overlaps, spans) == [ntspan(0, 12), ntspan(15, 20), ntspan(21, 31)]
 
     spans = [ntspan(Second(x), Second(x + 1)) for x in 0:10:59]
