@@ -222,13 +222,14 @@ end
     @test all(duration.(i_spans) .== Second(8))
 end
 
-ntspan(a, b) = (;start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
+ntspan(a, b) = (; start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
 @testset "support named tuples" begin
-    @test index_from_time(100, (;start=Second(3), stop=Second(6))) == 301:600
-    @test_throws ArgumentError stop((;stop = 0))
-    @test_throws ArgumentError start((;start = 0))
+    @test index_from_time(100, (; start=Second(3), stop=Second(6))) == 301:600
+    @test_throws ArgumentError stop((; stop=0))
+    @test_throws ArgumentError start((; start=0))
 
-    for t in [(;start=Nanosecond(1), stop=Nanosecond(2)), (;stop=Second(1), start=Second(0))]
+    for t in [(; start=Nanosecond(1), stop=Nanosecond(2)),
+              (; stop=Second(1), start=Second(0))]
         @test istimespan(t)
         @test start(t) == Nanosecond(t.start)
         @test stop(t) == Nanosecond(t.stop)
@@ -237,13 +238,14 @@ ntspan(a, b) = (;start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
         @test shortest_timespan_containing([t]) == TimeSpan(t)
         @test duration(t) == Nanosecond(t.stop - t.start)
         by = Second(rand(1:10))
-        @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
+        @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by),
+                                            stop(t) + Nanosecond(by))
     end
 
     spans = [ntspan(0, 10), ntspan(6, 12), ntspan(15, 20),
-    ntspan(21, 30), ntspan(29, 31)]
-    # this could be fixed by defining
-    # Base.convert(::Type{<:NamedTuple}, x::TimeSpan) = (;start=start(x), stop=stop(x))
+             ntspan(21, 30), ntspan(29, 31)]
+    # NOTE: this could be fixed by defining
+    # Base.convert(::Type{<:NamedTuple}, x::TimeSpan) = (; start=start(x), stop=stop(x))
     @test_broken merge_spans!(overlaps, spans) == [ntspan(0, 12), ntspan(15, 20), ntspan(21, 31)]
 
     spans = [ntspan(Second(x), Second(x + 1)) for x in 0:10:59]
@@ -252,8 +254,8 @@ ntspan(a, b) = (;start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
     @test length(i_spans) == 6
 end
 
-@testset "arrow serialization" begin
-    cols = (;span=TimeSpan(1, 2))
+@testset "Arrow serialization" begin
+    cols = (; span=TimeSpan(1, 2))
     io = Arrow.tobuffer([cols])
     spancol = first(Tables.columns(Arrow.Table(io)))
     @test spancol isa AbstractVector{<:TimeSpan}
