@@ -1,7 +1,7 @@
 name = "TimeSpans"
 uuid = "bb34ddd2-327f-4c4a-bfb0-c98fc494ece1"
 authors = ["Beacon Biosignals, Inc."]
-version = "0.4.0"
+version = "0.3.2"
 
 [deps]
 ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
