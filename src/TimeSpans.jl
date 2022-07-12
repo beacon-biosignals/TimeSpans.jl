@@ -110,7 +110,10 @@ Return the inclusive lower bound of `span` as a `Nanosecond` value.
 """
 start(span::TimeSpan) = span.start
 start(t::Period) = convert(Nanosecond, t)
-start(x::NamedTuple) = Nanosecond(x.start)
+function start(x::NamedTuple)
+    x.start isa Period || throw(ArgumentError("The field `start` must be a `Period` type"))
+    Nanosecond(x.start)
+end
 
 """
     stop(span)
@@ -119,7 +122,10 @@ Return the exclusive upper bound of `span` as a `Nanosecond` value.
 """
 stop(span::TimeSpan) = span.stop
 stop(t::Period) = convert(Nanosecond, t) + Nanosecond(1)
-stop(x::NamedTuple) = Nanosecond(x.stop)
+function stop(x::NamedTuple) 
+    x.stop isa Period || throw(ArgumentError("The field `stop` must be a `Period` type"))
+    Nanosecond(x.stop)
+end
 
 #####
 ##### generic utilities
