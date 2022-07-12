@@ -222,7 +222,7 @@ end
     @test all(duration.(i_spans) .== Second(8))
 end
 
-ntspan(a, b) = (;start=Nanosecond(a), stop=Nanosecond(b))
+ntspan(a, b) = (;start=Nanosecond(a), other=1.0, stop=Nanosecond(b))
 @testset "support named tuples" begin
     @test index_from_time(100, (;start=Second(3), stop=Second(6))) == 301:600
 
