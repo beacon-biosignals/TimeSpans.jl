@@ -186,3 +186,13 @@ end
     @test length(i_spans) == 6
     @test all(duration.(i_spans) .== Second(8))
 end
+
+@testset "broadcast_spans" begin
+    test_vec = [TimeSpan(0, 100), TimeSpan(0, 200)]
+    test_vec .= TimeSpan(0, 300)
+    @test test_vec == [TimeSpan(0, 300), TimeSpan(0, 300)]
+
+    test_vec = []
+    test_vec .= TimeSpan(0, 300)
+    @test test_vec == []
+end
