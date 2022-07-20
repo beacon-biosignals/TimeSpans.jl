@@ -53,6 +53,9 @@ Base.in(x::TimePeriod, y::TimeSpan) = start(y) <= x < stop(y)
 Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::AbstractArray) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
 Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Tuple) = invoke(findall, Tuple{Function, typeof(obj)}, pred, obj)
 
+# allow TimeSpans to be broadcasted
+Base.broadcastable(t::TimeSpan) = Ref(t)
+       
 #####
 ##### pretty printing
 #####
