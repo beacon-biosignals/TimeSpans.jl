@@ -371,7 +371,7 @@ Return a vector of `TimeSpan`s representing the gaps between the spans in the
 iterable `spans` that are contained within `parent_span`.
 """
 function invert_spans(spans, parent_span)
-    isempty(spans) && return TimeSpan[parent_span]
+    isempty(spans) && return [TimeSpan(parent_span)]
     spans = collect(spans)
     filter!(x -> contains(parent_span, x), spans)
     merge_spans!((a, b) -> start(b) <= stop(a), spans)
