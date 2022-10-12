@@ -185,6 +185,9 @@ end
     i_spans = invert_spans(spans, parent_span)
     @test length(i_spans) == 6
     @test all(duration.(i_spans) .== Second(8))
+
+    # empty
+    @test invert_spans(TimeSpan[], parent_span) == [parent_span]
 end
 
 @testset "broadcast_spans" begin
