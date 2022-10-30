@@ -125,16 +125,7 @@ end
             @test index == index_from_time(Float64(rate), sample_time)
         end
     end
-end
 
-@testset "`in` and `findall`" begin
-    @test findall(in(TimeSpan(1, 10)), Nanosecond.(5:15)) == 1:5
-    @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:1
-    @test in(TimeSpan(1,2))(Nanosecond(1))
-    @test !in(TimeSpan(1,2))(Nanosecond(2))
-end
-
-@testset "index_from_time" begin
     @testset "docstring" begin
         @test index_from_time(1, Second(0)) == 1
         @test index_from_time(1, Second(1)) == 2
@@ -147,7 +138,16 @@ end
         @test index_from_time(200, ns) == 30001
         @test index_from_time(200e0, ns) == 30001
         @test index_from_time(200f0, ns) == 30001
+        @test time_from_index(143.5, 8611) == Nanosecond(60000000000)
+        @test time_from_index(Float32(143.5), 8611) == Nanosecond(60000000000)
     end
+end
+
+@testset "`in` and `findall`" begin
+    @test findall(in(TimeSpan(1, 10)), Nanosecond.(5:15)) == 1:5
+    @test findall(in(TimeSpan(1, 10)), map(Nanosecond, (9,10,11))) == 1:1
+    @test in(TimeSpan(1,2))(Nanosecond(1))
+    @test !in(TimeSpan(1,2))(Nanosecond(2))
 end
 
 @testset "merge_spans!" begin
