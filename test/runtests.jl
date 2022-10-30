@@ -94,7 +94,7 @@ end
     @test_throws ArgumentError time_from_index(200, 0)
     @test time_from_index(100, 1) == Nanosecond(0)
     @test time_from_index(100, 301:600) == TimeSpan(Second(3), Second(6))
-    @test time_from_index(100, 101:101) == TimeSpan(Second(1))
+    @test time_from_index(100, 101:101) == TimeSpan(Second(1), Nanosecond(1010000000))
     @test_throws ArgumentError index_from_time(200, Nanosecond(-1))
     @test index_from_time(100, Nanosecond(0)) == 1
     @test index_from_time(100, TimeSpan(Second(3), Second(6))) == 301:600
@@ -140,6 +140,10 @@ end
         @test index_from_time(200f0, ns) == 30001
         @test time_from_index(143.5, 8611) == Nanosecond(60000000000)
         @test time_from_index(Float32(143.5), 8611) == Nanosecond(60000000000)
+    end
+
+    for i in 1:10
+        @test index_from_time(1.5, time_from_index(1.5, 1:i)) == 1:i
     end
 end
 
