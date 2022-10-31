@@ -8,7 +8,6 @@ export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
        time_from_index, merge_spans!, merge_spans, invert_spans
 
-
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
 #####
@@ -55,7 +54,7 @@ Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Tuple) = invoke(findall
 
 # allow TimeSpans to be broadcasted
 Base.broadcastable(t::TimeSpan) = Ref(t)
-       
+
 #####
 ##### pretty printing
 #####
@@ -213,15 +212,11 @@ julia> index_from_time(100, Millisecond(1000))
 101
 ```
 """
-index_from_time(sample_rate, sample_time::Period) = first(index_and_is_rounded_from_time(sample_rate, sample_time))
-
-# Helper to get the index and whether or not it has been rounded
-function index_and_is_rounded_from_time(sample_rate, sample_time::Period)
+function index_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
     time_in_nanoseconds >= 0 || throw(ArgumentError("`sample_time` must be >= 0 nanoseconds"))
     time_in_seconds = time_in_nanoseconds / NS_IN_SEC
-    index = time_in_seconds * sample_rate + 1
-    return floor(Int, index), !isinteger(index)
+    return floor(Int, time_in_seconds * sample_rate) + 1 # the `+ 1` here converts from 0-based to 1-based indexing
 end
 
 """
@@ -242,12 +237,12 @@ julia> index_from_time(100, TimeSpan(Second(3), Second(6)))
 """
 function index_from_time(sample_rate, span)
     i = index_from_time(sample_rate, start(span))
-    j, is_rounded = index_and_is_rounded_from_time(sample_rate, stop(span))
-    # if `j` has been rounded down, then we are already excluding the right endpoint
-    # by means of that rounding. Hence, we don't need to decrement here.
-    if i != j && !is_rounded
-        j -= 1
-    end
+    # Recall that `stop(span)` returns `span`'s *exclusive* upper bound, but for this
+    # calculation, we want to use `span`'s *inclusive* upper bound. Otherwise, we might
+    # potentially "include" an additional sample point that doesn't actually fall within
+    # `span`, but falls right after it. Thus, our `j` calculation uses `stop(span) - Nanosecond(1)`,
+    # which is the final nanosecond actually included in the `span`.
+    j = index_from_time(sample_rate, stop(span) - Nanosecond(1))
     return i:j
 end
 
@@ -281,7 +276,12 @@ end
 """
     time_from_index(sample_rate, sample_range::AbstractUnitRange)
 
-Return the `TimeSpan` corresponding to `sample_range` given `sample_rate` in Hz:
+Return the `TimeSpan` corresponding to `sample_range` given `sample_rate` in Hz.
+
+Note that the returned span includes the time period between the final sample and
+its successor, excluding the successor itself.
+
+Examples:
 
 ```jldoctest
 julia> time_from_index(100, 1:100)
@@ -296,9 +296,8 @@ TimeSpan(3000000000 nanoseconds, 6000000000 nanoseconds)
 """
 function time_from_index(sample_rate, sample_range::AbstractUnitRange)
     i, j = first(sample_range), last(sample_range)
-    j = j == i ? j : j + 1
     return TimeSpan(time_from_index(sample_rate, i),
-                    time_from_index(sample_rate, j))
+                    time_from_index(sample_rate, j + 1))
 end
 
 """
