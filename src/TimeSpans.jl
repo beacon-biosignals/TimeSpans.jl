@@ -186,8 +186,11 @@ duration(span) = stop(span) - start(span)
     TimeSpans.nanoseconds_per_sample(sample_rate)
 
 Given `sample_rate` in Hz, return the number of nanoseconds corresponding to one sample.
+
+Note that this function performs the relevant calculation using `Float64(sample_rate)`
+in order to improve the accuracy of the result.
 """
-nanoseconds_per_sample(sample_rate) = inv(sample_rate) * NS_IN_SEC
+nanoseconds_per_sample(sample_rate) = NS_IN_SEC / Float64(sample_rate)
 
 """
     index_from_time(sample_rate, sample_time::Period)
