@@ -54,7 +54,7 @@ Base.findall(pred::Base.Fix2{typeof(in), TimeSpan}, obj::Tuple) = invoke(findall
 
 # allow TimeSpans to be broadcasted
 Base.broadcastable(t::TimeSpan) = Ref(t)
-       
+
 #####
 ##### pretty printing
 #####
@@ -216,7 +216,7 @@ function index_from_time(sample_rate, sample_time::Period)
     time_in_nanoseconds = convert(Nanosecond, sample_time).value
     time_in_nanoseconds >= 0 || throw(ArgumentError("`sample_time` must be >= 0 nanoseconds"))
     time_in_seconds = time_in_nanoseconds / NS_IN_SEC
-    return floor(Int, time_in_seconds * sample_rate) + 1
+    return floor(Int, time_in_seconds * sample_rate) + 1 # the `+ 1` here converts from 0-based to 1-based indexing
 end
 
 """
@@ -237,6 +237,11 @@ julia> index_from_time(100, TimeSpan(Second(3), Second(6)))
 """
 function index_from_time(sample_rate, span)
     i = index_from_time(sample_rate, start(span))
+    # Recall that `stop(span)` returns `span`'s *exclusive* upper bound, but for this
+    # calculation, we want to use `span`'s *inclusive* upper bound. Otherwise, we might
+    # potentially "include" an additional sample point that doesn't actually fall within
+    # `span`, but falls right after it. Thus, our `j` calculation uses `stop(span) - Nanosecond(1)`,
+    # which is the final nanosecond actually included in the `span`.
     j = index_from_time(sample_rate, stop(span) - Nanosecond(1))
     return i:j
 end
