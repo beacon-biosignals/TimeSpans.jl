@@ -227,6 +227,10 @@ end
 
     # empty
     @test invert_spans(TimeSpan[], parent_span) == [parent_span]
+
+    # some spans cross the parent span's boundary
+    i_spans = invert_spans([TimeSpan(-5, 3), TimeSpan(6, 8)], TimeSpan(0, 10))
+    @test i_spans == [TimeSpan(3, 6), TimeSpan(8, 10)]
 end
 
 @testset "broadcast_spans" begin
