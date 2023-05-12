@@ -209,6 +209,9 @@ end
     i_spans = invert_spans(spans, TimeSpan(Second(0), Second(30)))
     @test length(i_spans) == 4
     @test maximum(stop, i_spans) <= Second(30)
+    # all spans lie outside of parent_span
+    i_spans = invert_spans(spans, TimeSpan(Minute(10), Minute(30)))
+    @test only(i_spans) == TimeSpan(Minute(10), Minute(30))
 
     # adjacent but not overlapping spans, unsorted
     spans = vcat([TimeSpan(Second(x), Second(x + 1)) for x in 0:10:59],
