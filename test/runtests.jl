@@ -1,6 +1,8 @@
-using Test, TimeSpans, Dates
-
+using Test
+using TimeSpans
 using TimeSpans: contains, nanoseconds_per_sample
+using Compat
+using Dates
 using Statistics
 
 function naive_index_from_time(sample_rate, sample_time)
@@ -47,12 +49,10 @@ end
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
 
     # Periods and compound periods are supported
-    _to_ns(p::Union{Period, Any}) = Nanosecond(p)
-    _to_ns(p::Dates.CompoundPeriod) = sum(convert.(Nanosecond, p.periods))
     for start in [Nanosecond(3), Minute(1), Minute(3) + Nanosecond(1)]
         stop = start + Nanosecond(8)
-        start_ns = _to_ns(start)
-        stop_ns = _to_ns(stop)
+        start_ns = convert(Nanosecond, start)
+        stop_ns = convert(Nanosecond, stop)
         @test TimeSpan(start, stop) == TimeSpan(start_ns, stop_ns) == TimeSpan(Dates.value(start_ns), Dates.value(stop_ns))
     end
     @test_throws MethodError TimeSpan(now(), now() + Nanosecond(1))

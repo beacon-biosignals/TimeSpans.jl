@@ -1,6 +1,7 @@
 module TimeSpans
 
 using Base.Iterators
+using Compat
 using Dates
 using Statistics
 
@@ -35,7 +36,7 @@ struct TimeSpan
         return new(start, stop)
     end
     function TimeSpan(start, stop)
-        _to_ns = (t) -> isa(t, Dates.CompoundPeriod) ? sum(convert.(Nanosecond, t.periods)) : Nanosecond(t)
+        _to_ns = (t) -> isa(t, Dates.CompoundPeriod) ? convert(Nanosecond, t) : Nanosecond(t)
         return TimeSpan(_to_ns(start), _to_ns(stop))
     end
 end
