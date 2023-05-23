@@ -1,6 +1,7 @@
 module TimeSpans
 
 using Base.Iterators
+using Compat
 using Dates
 using Statistics
 
@@ -34,8 +35,12 @@ struct TimeSpan
         start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
         return new(start, stop)
     end
-    TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
+
+_to_ns(t::Dates.CompoundPeriod) = convert(Nanosecond, t)
+_to_ns(t::Any) = Nanosecond(t)
+
+TimeSpan(start, stop) = TimeSpan(_to_ns(start), _to_ns(stop))
 
 """
     TimeSpan(x)

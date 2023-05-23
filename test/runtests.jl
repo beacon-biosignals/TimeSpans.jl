@@ -1,6 +1,8 @@
-using Test, TimeSpans, Dates
-
+using Test
+using TimeSpans
 using TimeSpans: contains, nanoseconds_per_sample
+using Compat
+using Dates
 using Statistics
 
 function naive_index_from_time(sample_rate, sample_time)
@@ -45,6 +47,22 @@ end
     @test translate(t, by) === TimeSpan(start(t) + Nanosecond(by), stop(t) + Nanosecond(by))
     @test translate(t, -by) === TimeSpan(start(t) - Nanosecond(by), stop(t) - Nanosecond(by))
     @test repr(TimeSpan(6149872364198, 123412345678910)) == "TimeSpan(01:42:29.872364198, 34:16:52.345678910)"
+
+    # Periods and compound periods are supported
+    for start in [Nanosecond(3), Minute(1), Minute(3) + Nanosecond(1)]
+        stop = start + Nanosecond(8)
+        start_ns = convert(Nanosecond, start)
+        stop_ns = convert(Nanosecond, stop)
+        @test TimeSpan(start, stop) == TimeSpan(start_ns, stop_ns) == TimeSpan(Dates.value(start_ns), Dates.value(stop_ns))
+    end
+    @test_throws MethodError TimeSpan(now(), now() + Nanosecond(1))
+
+    # Different types for start and stop are supported
+    for (start, stop) in [(3, Nanosecond(8)), (Nanosecond(3), 8), (3, Minute(8))]
+        start_ns = Nanosecond(start)
+        stop_ns = Nanosecond(stop)
+        @test TimeSpan(start, stop) == TimeSpan(start_ns, stop_ns) == TimeSpan(Dates.value(start_ns), Dates.value(stop_ns))
+    end
 end
 
 @testset "format_duration" begin
