@@ -34,10 +34,10 @@ struct TimeSpan
         start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
         return new(start, stop)
     end
-    function TimeSpan(start::Union{Period,Dates.CompoundPeriod}, stop::Union{Period,Dates.CompoundPeriod})
-        return TimeSpan(Dates.value(convert(Nanosecond, start)), Dates.value(convert(Nanosecond, stop)))
+    function TimeSpan(start, stop)
+        _to_ns = (t) -> isa(t, Dates.CompoundPeriod) ? sum(convert.(Nanosecond, t.periods)) : Nanosecond(t)
+        return TimeSpan(_to_ns(start), _to_ns(stop))
     end
-    TimeSpan(start, stop) = TimeSpan(Nanosecond(start), Nanosecond(stop))
 end
 
 """
