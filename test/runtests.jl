@@ -56,6 +56,13 @@ end
         @test TimeSpan(start, stop) == TimeSpan(start_ns, stop_ns) == TimeSpan(Dates.value(start_ns), Dates.value(stop_ns))
     end
     @test_throws MethodError TimeSpan(now(), now() + Nanosecond(1))
+
+    # Different types for start and stop are supported
+    for (start, stop) in [(3, Nanosecond(8)), (Nanosecond(3), 8), (3, Minute(8))]
+        start_ns = Nanosecond(start)
+        stop_ns = Nanosecond(stop)
+        @test TimeSpan(start, stop) == TimeSpan(start_ns, stop_ns) == TimeSpan(Dates.value(start_ns), Dates.value(stop_ns))
+    end
 end
 
 @testset "format_duration" begin
