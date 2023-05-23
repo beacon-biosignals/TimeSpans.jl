@@ -35,11 +35,12 @@ struct TimeSpan
         start < stop || throw(ArgumentError("start(span) < stop(span) must be true, got $start and $stop"))
         return new(start, stop)
     end
-    function TimeSpan(start, stop)
-        _to_ns = (t) -> isa(t, Dates.CompoundPeriod) ? convert(Nanosecond, t) : Nanosecond(t)
-        return TimeSpan(_to_ns(start), _to_ns(stop))
-    end
 end
+
+_to_ns(t::Dates.CompoundPeriod) = convert(Nanosecond, t)
+_to_ns(t::Any) = Nanosecond(t)
+
+TimeSpan(start, stop) = TimeSpan(_to_ns(start), _to_ns(stop))
 
 """
     TimeSpan(x)
