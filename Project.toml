@@ -20,6 +20,7 @@ Compat = "3.38, 4"
 julia = "1.6"
 
 [extras]
+ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
