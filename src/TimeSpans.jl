@@ -399,4 +399,12 @@ function invert_spans(spans, parent_span)
     return gaps
 end
 
+#####
+##### Package extensions (TODO: remove this section once we require Julia 1.9+)
+#####
+
+if !isdefined(Base, :get_extension)
+    include(joinpath(dirname(@__DIR__), "ext", "TimeSpansArrowTypesExt.jl"))
+end
+
 end # module
