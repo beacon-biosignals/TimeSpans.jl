@@ -263,3 +263,10 @@ end
     test_vec .= TimeSpan(0, 300)
     @test test_vec == []
 end
+
+@testset "extensions" begin
+    @testset "ArrowTypes" begin
+        using ArrowTypes
+        @test ArrowTypes.JuliaType(Val(ArrowTypes.arrowname(TimeSpan))) === TimeSpan
+    end
+end
