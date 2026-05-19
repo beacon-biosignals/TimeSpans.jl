@@ -408,8 +408,6 @@ Returns a timespan that consists of the intersection of two timespans.
 
 function intersect_spans(span_1, span_2)
     overlaps(span_1, span_2) || throw(ArgumentError("provided spans must overlap"))
-    ismissing(span_1) && return missing
-    ismissing(span_2) && return missing
 
     return TimeSpan(maximum(start.([span_1, span_2])), minimum(stop.([span_1, span_2])))
 end
