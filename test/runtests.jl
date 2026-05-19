@@ -264,6 +264,9 @@ end
     @test test_vec == []
 end
 
+@testset "intersect_spans" begin 
+end
+
 @testset "extensions" begin
     @testset "ArrowTypes" begin
         using ArrowTypes
