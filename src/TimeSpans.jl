@@ -7,7 +7,8 @@ using Statistics
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
-       time_from_index, merge_spans!, merge_spans, invert_spans
+       time_from_index, merge_spans!, merge_spans, invert_spans,
+       intersect_spans
 
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
@@ -411,7 +412,6 @@ function intersect_spans(span_1, span_2)
     ismissing(span_2) && return missing
 
     return TimeSpan(maximum(start.([span_1, span_2])), minimum(stop.([span_1, span_2])))
-
 end
 
 #####
