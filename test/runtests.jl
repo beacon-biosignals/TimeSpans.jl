@@ -269,13 +269,13 @@ end
     test_span_2 = TimeSpan(20, 80)
     test_span_3 = TimeSpan(80, 120)
     non_intersecting_span = TimeSpan(101, 150)
-    
+
     @test intersect_spans(test_span_1, test_span_2) == test_span_2
     @test intersect_spans(test_span_1, test_span_3) == TimeSpan(80, 100)
 
     @test_throws MethodError intersect_spans(test_span_1, missing)
     @test_throws ArgumentError intersect_spans(test_span_1, non_intersecting_span)
-    
+
 end
 
 @testset "extensions" begin
