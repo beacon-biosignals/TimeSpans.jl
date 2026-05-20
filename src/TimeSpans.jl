@@ -405,7 +405,6 @@ end
 
 Returns a timespan that consists of the intersection of two timespans.
 """
-
 function intersect_spans(span_1, span_2)
     overlaps(span_1, span_2) || throw(ArgumentError("provided spans must overlap"))
 
