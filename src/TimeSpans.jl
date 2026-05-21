@@ -7,8 +7,7 @@ using Statistics
 
 export TimeSpan, start, stop, istimespan, translate, overlaps,
        shortest_timespan_containing, duration, index_from_time,
-       time_from_index, merge_spans!, merge_spans, invert_spans,
-       intersect_spans
+       time_from_index, merge_spans!, merge_spans, invert_spans
 
 const NS_IN_SEC = Dates.value(Nanosecond(Second(1)))  # Number of nanoseconds in one second
 
@@ -401,15 +400,13 @@ function invert_spans(spans, parent_span)
 end
 
 """
-    intersect_spans(span_1, span_2)
+    intersect(span_1, span_2)
 
 Returns a timespan that consists of the intersection of two timespans.
 """
-function intersect_spans(span_1, span_2)
-    overlaps(span_1, span_2) || throw(ArgumentError("provided spans must overlap"))
-
-    spans = [span_1, span_2]
-    return TimeSpan(maximum(start, spans), minimum(stop, spans))
+function intersect(a, b)
+    overlaps(a, b) || throw(ArgumentError("provided spans must overlap"))
+    return TimeSpan(max(start(a), start(b)), min(stop(a), stop(b)))
 end
 
 #####

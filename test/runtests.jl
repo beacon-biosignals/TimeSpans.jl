@@ -264,16 +264,16 @@ end
     @test test_vec == []
 end
 
-@testset "intersect_spans" begin
+@testset "intersect" begin
     test_span_1 = TimeSpan(10, 100)
     test_span_2 = TimeSpan(20, 80)
     test_span_3 = TimeSpan(80, 120)
     non_intersecting_span = TimeSpan(101, 150)
 
-    @test intersect_spans(test_span_1, test_span_2) == test_span_2
-    @test intersect_spans(test_span_1, test_span_3) == TimeSpan(80, 100)
+    @test TimeSpans.intersect(test_span_1, test_span_2) == test_span_2
+    @test TimeSpans.intersect(test_span_1, test_span_3) == TimeSpan(80, 100)
 
-    @test_throws ArgumentError intersect_spans(test_span_1, non_intersecting_span)
+    @test_throws ArgumentError TimeSpans.intersect(test_span_1, non_intersecting_span)
 end
 
 @testset "extensions" begin
