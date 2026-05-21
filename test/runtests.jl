@@ -274,7 +274,6 @@ end
     @test intersect_spans(test_span_1, test_span_3) == TimeSpan(80, 100)
 
     @test_throws ArgumentError intersect_spans(test_span_1, non_intersecting_span)
-
 end
 
 @testset "extensions" begin
