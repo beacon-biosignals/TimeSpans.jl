@@ -403,6 +403,8 @@ end
     intersect(span_1, span_2)
 
 Returns a timespan that consists of the intersection of two timespans.
+
+Throws an `ArgumentError` if there is not overlap between the spans.
 """
 function intersect(a, b)
     overlaps(a, b) || throw(ArgumentError("provided spans must overlap"))
