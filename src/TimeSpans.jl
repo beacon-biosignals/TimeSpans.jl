@@ -400,13 +400,13 @@ function invert_spans(spans, parent_span)
 end
 
 """
-    intersect(span_1, span_2)
+    intersect(a::TimeSpan, b::TimeSpan)
 
 Returns a timespan that consists of the intersection of two timespans.
 
 Throws an `ArgumentError` if there is not overlap between the spans.
 """
-function intersect(a, b)
+function intersect(a::TimeSpan, b::TimeSpan)
     overlaps(a, b) || throw(ArgumentError("provided spans must overlap"))
     return TimeSpan(max(start(a), start(b)), min(stop(a), stop(b)))
 end
